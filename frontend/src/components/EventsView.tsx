@@ -268,7 +268,10 @@ export const EventsView: React.FC<EventsViewProps> = ({
                   <label className="block text-slate-300 mb-1">HOST BUILDING *</label>
                   <select
                     value={buildingId}
-                    onChange={(e) => setBuildingId(Number(e.target.value))}
+                    onChange={(e) => {
+                      setBuildingId(Number(e.target.value));
+                      setRoomId('');
+                    }}
                     className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-400"
                   >
                     {buildings.map((b) => (

@@ -1,62 +1,321 @@
 import os
 import sys
+import shutil
+import subprocess
+import logging
+from datetime import datetime, timedelta, timezone
 
 # Ensure backend root is in sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from datetime import datetime, timedelta, timezone
 from sqlalchemy import text
+from app.config import settings, mask_database_url
 from app.database import engine, SessionLocal, Base
-
 from app.models.entities import User, Building, Room, Booking, MaintenanceTicket, Event
 
-def init_database():
-    print("=" * 60)
-    print("CampusPulse — Database Initialization & Seeding")
-    print("=" * 60)
+logger = logging.getLogger("campuspulse.init_db")
+logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
+
+# SQL DDL for SQLite Views
+SQLITE_VIEWS_DDL = """
+CREATE VIEW IF NOT EXISTS v_dashboard_summary AS
+SELECT 
+    b.id AS building_id,
+    b.code AS building_code,
+    b.name AS building_name,
+    b.floors,
+    b.status AS building_status,
+    COUNT(r.id) AS total_rooms,
+    COALESCE(SUM(CASE WHEN r.status = 'AVAILABLE' THEN 1 ELSE 0 END), 0) AS available_rooms,
+    COALESCE(SUM(CASE WHEN r.status = 'OCCUPIED' THEN 1 ELSE 0 END), 0) AS occupied_rooms,
+    COALESCE(SUM(CASE WHEN r.status = 'MAINTENANCE' THEN 1 ELSE 0 END), 0) AS maintenance_rooms,
+    ROUND(
+        CASE 
+            WHEN COUNT(r.id) > 0 THEN (CAST(SUM(CASE WHEN r.status = 'OCCUPIED' THEN 1 ELSE 0 END) AS FLOAT) / COUNT(r.id)) * 100 
+            ELSE 0 
+        END, 2
+    ) AS occupancy_rate
+FROM buildings b
+LEFT JOIN rooms r ON b.id = r.building_id
+GROUP BY b.id, b.code, b.name, b.floors, b.status;
+
+CREATE VIEW IF NOT EXISTS v_room_live_status AS
+SELECT 
+    r.id AS room_id,
+    r.room_number,
+    r.floor,
+    r.capacity,
+    r.room_type,
+    r.status AS configured_status,
+    r.has_projector,
+    r.has_ac,
+    b.id AS building_id,
+    b.code AS building_code,
+    b.name AS building_name,
+    bk.id AS active_booking_id,
+    bk.title AS active_booking_title,
+    bk.start_time AS active_booking_start,
+    bk.end_time AS active_booking_end,
+    mt.id AS open_ticket_id,
+    mt.title AS open_ticket_title,
+    mt.priority AS open_ticket_priority
+FROM rooms r
+JOIN buildings b ON r.building_id = b.id
+LEFT JOIN bookings bk ON r.id = bk.room_id 
+    AND bk.status = 'CONFIRMED' 
+    AND CURRENT_TIMESTAMP BETWEEN bk.start_time AND bk.end_time
+LEFT JOIN maintenance_tickets mt ON r.id = mt.room_id 
+    AND mt.status IN ('OPEN', 'IN_PROGRESS');
+"""
+
+ORACLE_TRIGGER_DDL = """
+CREATE OR REPLACE TRIGGER trg_no_overlapping_bookings
+FOR INSERT OR UPDATE ON bookings
+COMPOUND TRIGGER
+
+   TYPE t_booking_rec IS RECORD (
+      room_id NUMBER,
+      start_time TIMESTAMP WITH TIME ZONE,
+      end_time TIMESTAMP WITH TIME ZONE,
+      status VARCHAR2(30),
+      id NUMBER
+   );
+   TYPE t_booking_list IS TABLE OF t_booking_rec;
+   g_bookings t_booking_list := t_booking_list();
+
+   BEFORE STATEMENT IS
+   BEGIN
+      g_bookings.DELETE;
+   END BEFORE STATEMENT;
+
+   AFTER EACH ROW IS
+   BEGIN
+      IF :NEW.status = 'CONFIRMED' THEN
+         g_bookings.EXTEND;
+         g_bookings(g_bookings.LAST).room_id := :NEW.room_id;
+         g_bookings(g_bookings.LAST).start_time := :NEW.start_time;
+         g_bookings(g_bookings.LAST).end_time := :NEW.end_time;
+         g_bookings(g_bookings.LAST).status := :NEW.status;
+         g_bookings(g_bookings.LAST).id := :NEW.id;
+      END IF;
+   END AFTER EACH ROW;
+
+   AFTER STATEMENT IS
+      v_conflict_count NUMBER := 0;
+   BEGIN
+      FOR i IN 1 .. g_bookings.COUNT LOOP
+         SELECT COUNT(*)
+         INTO v_conflict_count
+         FROM bookings b
+         WHERE b.room_id = g_bookings(i).room_id
+           AND b.status = 'CONFIRMED'
+           AND (b.id != g_bookings(i).id OR g_bookings(i).id IS NULL)
+           AND NOT (b.end_time <= g_bookings(i).start_time OR b.start_time >= g_bookings(i).end_time);
+
+         IF v_conflict_count > 0 THEN
+            RAISE_APPLICATION_ERROR(
+               -20001, 
+               'OracleSQL Conflict Error: Room ' || g_bookings(i).room_id || 
+               ' has an overlapping booking during the requested time window.'
+            );
+         END IF;
+      END LOOP;
+   END AFTER STATEMENT;
+
+END trg_no_overlapping_bookings;
+"""
+
+ORACLE_VIEWS_DDL = [
+    """
+    CREATE OR REPLACE VIEW v_dashboard_summary AS
+    SELECT 
+        b.id AS building_id,
+        b.code AS building_code,
+        b.name AS building_name,
+        b.floors,
+        b.status AS building_status,
+        COUNT(r.id) AS total_rooms,
+        COALESCE(SUM(CASE WHEN r.status = 'AVAILABLE' THEN 1 ELSE 0 END), 0) AS available_rooms,
+        COALESCE(SUM(CASE WHEN r.status = 'OCCUPIED' THEN 1 ELSE 0 END), 0) AS occupied_rooms,
+        COALESCE(SUM(CASE WHEN r.status = 'MAINTENANCE' THEN 1 ELSE 0 END), 0) AS maintenance_rooms,
+        ROUND(
+            CASE 
+                WHEN COUNT(r.id) > 0 THEN (SUM(CASE WHEN r.status = 'OCCUPIED' THEN 1 ELSE 0 END) / COUNT(r.id)) * 100 
+                ELSE 0 
+            END, 2
+        ) AS occupancy_rate
+    FROM buildings b
+    LEFT JOIN rooms r ON b.id = r.building_id
+    GROUP BY b.id, b.code, b.name, b.floors, b.status
+    """,
+    """
+    CREATE OR REPLACE VIEW v_room_live_status AS
+    SELECT 
+        r.id AS room_id,
+        r.room_number,
+        r.floor,
+        r.capacity,
+        r.room_type,
+        r.status AS configured_status,
+        r.has_projector,
+        r.has_ac,
+        b.id AS building_id,
+        b.code AS building_code,
+        b.name AS building_name,
+        bk.id AS active_booking_id,
+        bk.title AS active_booking_title,
+        bk.start_time AS active_booking_start,
+        bk.end_time AS active_booking_end,
+        mt.id AS open_ticket_id,
+        mt.title AS open_ticket_title,
+        mt.priority AS open_ticket_priority
+    FROM rooms r
+    JOIN buildings b ON r.building_id = b.id
+    LEFT JOIN bookings bk ON r.id = bk.room_id 
+        AND bk.status = 'CONFIRMED' 
+        AND CURRENT_TIMESTAMP BETWEEN bk.start_time AND bk.end_time
+    LEFT JOIN maintenance_tickets mt ON r.id = mt.room_id 
+        AND mt.status IN ('OPEN', 'IN_PROGRESS')
+    """
+]
+
+ORACLE_INDEXES_DDL = [
+    "CREATE INDEX idx_rooms_bld_status ON rooms(building_id, status)",
+    "CREATE INDEX idx_bk_room_time ON bookings(room_id, start_time, end_time)",
+    "CREATE INDEX idx_bk_user_id ON bookings(user_id)",
+    "CREATE INDEX idx_mt_status_pri ON maintenance_tickets(status, priority)",
+    "CREATE INDEX idx_events_start ON events(start_time)",
+]
+
+def init_database(use_sqlplus: bool = False):
+    print("=" * 65)
+    print(" CampusPulse — Database Initialization & Verification ")
+    print("=" * 65)
 
     db_url = str(engine.url)
+    masked_url = mask_database_url(db_url)
     is_oracle = "oracle" in db_url
     is_postgres = "postgresql" in db_url
+    is_sqlite = "sqlite" in db_url
 
-    dialect_label = "Oracle SQL 21c (oracledb)" if is_oracle else ("PostgreSQL (psycopg)" if is_postgres else "SQLite (Fallback)")
-    print(f"Target Database Dialect: {dialect_label}")
-    print(f"Connecting to: {db_url.split('@')[-1] if '@' in db_url else db_url}")
+    dialect_label = (
+        "Oracle Database 21c (python-oracledb)" if is_oracle 
+        else "PostgreSQL (psycopg)" if is_postgres 
+        else "SQLite (Test / Offline Mode)"
+    )
+    print(f"[*] Target Dialect : {dialect_label}")
+    print(f"[*] Target Endpoint: {masked_url}")
 
-    if is_oracle:
-        print("\nCreating Oracle tables via SQLAlchemy metadata...")
-        Base.metadata.create_all(bind=engine)
-        print("Creating Oracle conflict-prevention trigger and views...")
-        oracle_schema_file = os.path.join(os.path.dirname(__file__), "oracle_schema.sql")
-        try:
-            import subprocess
-            subprocess.run(["sqlplus", "-S", "campuspulse/campuspulse123@localhost:1521/XEPDB1", f"@{oracle_schema_file}"], check=False, timeout=10)
-            print("Oracle triggers and views configured.")
-        except Exception as ex:
-            print(f"Notice: trigger setup exited with ({ex})")
-    elif is_postgres:
-        print("\nExecuting PostgreSQL DDL script with exclusion constraint...")
-        schema_file = os.path.join(os.path.dirname(__file__), "schema.sql")
-        with open(schema_file, "r", encoding="utf-8") as f:
-            schema_sql = f.read()
-        with engine.begin() as conn:
-            conn.execute(text(schema_sql))
-        print("Schema and exclusion constraints applied successfully.")
-    else:
-        print("\nCreating tables using SQLAlchemy metadata...")
-        Base.metadata.drop_all(bind=engine)
-        Base.metadata.create_all(bind=engine)
-        print("SQLAlchemy tables created.")
+    # Phase 1: Connection Verification
+    print("\n--- [Phase 1: Database Connectivity Check] ---")
+    try:
+        ping_sql = "SELECT 1 FROM dual" if is_oracle else "SELECT 1"
+        with engine.connect() as conn:
+            conn.execute(text(ping_sql))
+        print("[SUCCESS] Database connection established.")
+    except Exception as e:
+        print(f"[FAILED] Could not connect to database ({masked_url}): {e}")
+        sys.exit(1)
 
-    # Now populate realistic seed data
+    # Phase 2: Schema / Table Creation
+    print("\n--- [Phase 2: Relational Tables Creation] ---")
+    try:
+        if is_postgres:
+            schema_file = os.path.join(os.path.dirname(__file__), "schema.sql")
+            with open(schema_file, "r", encoding="utf-8") as f:
+                schema_sql = f.read()
+            with engine.begin() as conn:
+                conn.execute(text(schema_sql))
+            print("[SUCCESS] PostgreSQL DDL executed.")
+        else:
+            # Oracle and SQLite: Use SQLAlchemy declarative metadata
+            Base.metadata.create_all(bind=engine)
+            print("[SUCCESS] Base tables and constraints created via metadata.")
+    except Exception as e:
+        print(f"[FAILED] Relational tables creation failed: {e}")
+        sys.exit(1)
+
+    # Phase 3: Post-Schema Objects (Triggers, Views, Indexes)
+    print("\n--- [Phase 3: Post-Schema Objects (Views, Triggers, Indexes)] ---")
+    try:
+        if is_oracle:
+            if use_sqlplus:
+                sqlplus_bin = shutil.which("sqlplus")
+                if not sqlplus_bin:
+                    raise FileNotFoundError("sqlplus executable not found in system PATH.")
+                
+                # Extract credentials from engine.url
+                user = engine.url.username
+                password = engine.url.password
+                host = engine.url.host or "localhost"
+                port = engine.url.port or 1521
+                service = engine.url.query.get("service_name", "XEPDB1")
+                conn_str = f"{user}/{password}@{host}:{port}/{service}"
+                oracle_schema_file = os.path.join(os.path.dirname(__file__), "oracle_schema.sql")
+
+                print(f"[*] Executing SQL*Plus with script: {oracle_schema_file}")
+                res = subprocess.run(
+                    [sqlplus_bin, "-S", "-L", conn_str, f"@{oracle_schema_file}"],
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+                if res.returncode != 0:
+                    print(f"[FAILED] SQL*Plus exited with returncode {res.returncode}")
+                    print("STDOUT:", res.stdout)
+                    print("STDERR:", res.stderr)
+                    sys.exit(res.returncode)
+                print("[SUCCESS] Oracle schema compiled successfully via SQL*Plus.")
+            else:
+                # Compile directly via connection
+                with engine.begin() as conn:
+                    # 1. Views
+                    for view_sql in ORACLE_VIEWS_DDL:
+                        conn.execute(text(view_sql.strip()))
+                    print("[*] Oracle views created (v_dashboard_summary, v_room_live_status).")
+
+                    # 2. Trigger
+                    raw_conn = conn.connection
+                    cursor = raw_conn.cursor()
+                    cursor.execute(ORACLE_TRIGGER_DDL.strip())
+                    cursor.close()
+                    print("[*] Oracle compound trigger compiled (trg_no_overlapping_bookings).")
+
+                    # 3. Indexes
+                    for idx_sql in ORACLE_INDEXES_DDL:
+                        try:
+                            conn.execute(text(idx_sql.strip()))
+                        except Exception as ie:
+                            # ORA-00955: name already used; ORA-01408: such column list already indexed
+                            err_str = str(ie)
+                            if "ORA-00955" not in err_str and "ORA-01408" not in err_str:
+                                raise
+                    print("[*] Oracle performance indexes created.")
+                print("[SUCCESS] All Oracle schema objects compiled and verified.")
+
+        elif is_sqlite:
+            with engine.begin() as conn:
+                for statement in SQLITE_VIEWS_DDL.strip().split(";"):
+                    stmt = statement.strip()
+                    if stmt:
+                        conn.execute(text(stmt))
+            print("[SUCCESS] SQLite views created (v_dashboard_summary, v_room_live_status).")
+
+    except Exception as e:
+        print(f"[FAILED] Post-schema objects creation failed: {e}")
+        sys.exit(1)
+
+    # Phase 4: Idempotent Seed Data Population
+    print("\n--- [Phase 4: Sample Data Seeding] ---")
     db = SessionLocal()
     try:
-        # Check if already seeded
-        if db.query(Building).count() > 0:
-            print("Database already contains data. Skipping seed.")
+        # Check if buildings already exist
+        existing_buildings = db.query(Building).count()
+        if existing_buildings >= 4:
+            print(f"[*] Database already populated with {existing_buildings} buildings. Skipping duplicate seed.")
             return
 
-        print("\nSeeding 5 Campus Buildings...")
+        print("[*] Seeding 5 Campus Buildings...")
         buildings = [
             Building(
                 code="ENG",
@@ -109,7 +368,7 @@ def init_database():
 
         b_map = {b.code: b.id for b in buildings}
 
-        print("\nSeeding 10 Campus Users...")
+        print("[*] Seeding 10 Campus Users...")
         users = [
             User(name="Dr. Evelyn Reed", email="evelyn.reed@campuspulse.edu", role="FACULTY", department="Computer Science"),
             User(name="Prof. Marcus Vance", email="marcus.vance@campuspulse.edu", role="FACULTY", department="Electrical Engineering"),
@@ -127,7 +386,7 @@ def init_database():
 
         u_map = {u.name: u.id for u in users}
 
-        print("\nSeeding 25 Campus Rooms...")
+        print("[*] Seeding 25 Campus Rooms...")
         rooms_data = [
             # ENG Building
             {"b": "ENG", "num": "101", "floor": 1, "cap": 60, "type": "CLASSROOM", "status": "AVAILABLE", "proj": True, "ac": True},
@@ -181,12 +440,10 @@ def init_database():
         db.flush()
 
         r_map = {(r.building_id, r.room_number): r.id for r in rooms}
-
-        # Helper to get room id by building code and room number
         def get_rid(b_code, num):
             return r_map[(b_map[b_code], num)]
 
-        print("\nSeeding 12 Campus Bookings...")
+        print("[*] Seeding 12 Campus Bookings...")
         now = datetime.now(timezone.utc)
         bookings = [
             Booking(
@@ -290,7 +547,7 @@ def init_database():
         ]
         db.add_all(bookings)
 
-        print("\nSeeding 6 Maintenance Tickets...")
+        print("[*] Seeding 6 Maintenance Tickets...")
         tickets = [
             MaintenanceTicket(
                 room_id=get_rid("ENG", "208"),
@@ -351,7 +608,7 @@ def init_database():
         ]
         db.add_all(tickets)
 
-        print("\nSeeding 6 Campus Events...")
+        print("[*] Seeding 6 Campus Events...")
         events = [
             Event(
                 title="NextGen AI & Autonomous Systems Symposium",
@@ -411,14 +668,20 @@ def init_database():
         db.add_all(events)
 
         db.commit()
-        print("\nAll seed data committed successfully!")
+        print("\n[SUCCESS] Seed data committed successfully.")
         print(f"Summary: {len(buildings)} buildings, {len(rooms)} rooms, {len(users)} users, {len(bookings)} bookings, {len(tickets)} tickets, {len(events)} events.")
+
     except Exception as e:
         db.rollback()
-        print(f"Error seeding database: {e}")
-        raise
+        print(f"[FAILED] Seeding error: {e}")
+        sys.exit(1)
     finally:
         db.close()
 
+    print("\n" + "=" * 65)
+    print(" CampusPulse Database Initialization COMPLETE (Status: OK) ")
+    print("=" * 65)
+
 if __name__ == "__main__":
-    init_database()
+    use_sqlplus_mode = "--sqlplus" in sys.argv
+    init_database(use_sqlplus=use_sqlplus_mode)

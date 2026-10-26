@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from ..database import get_db
 from ..schemas.schemas import QueryExecutionResult
@@ -20,9 +20,9 @@ def list_available_queries():
         },
         {
             "id": "aggregation_groupby",
-            "title": "Aggregation & GROUP BY with HAVING",
+            "title": "Building Room Capacity & Active Tickets Summary",
             "category": "AGGREGATION",
-            "concept": "COUNT, SUM, AVG, ROUND functions with GROUP BY and HAVING condition"
+            "concept": "COUNT, SUM, AVG functions with non-inflating pre-aggregated subqueries"
         },
         {
             "id": "not_exists_availability",
@@ -48,8 +48,17 @@ def list_available_queries():
 def execute_query(query_id: str, db: Session = Depends(get_db)):
     """
     Executes a DBMS demonstration query in real time, calculating execution speed and returning tabular records.
+    Returns 404 for unknown query IDs instead of fallback.
     """
     try:
         return CampusService.execute_analytics_query(db, query_id)
+    except KeyError as ke:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(ke).strip("'\"")
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Query execution failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database query execution failed. Please verify query parameters."
+        )

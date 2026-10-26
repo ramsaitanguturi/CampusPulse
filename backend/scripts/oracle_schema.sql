@@ -4,8 +4,12 @@
 -- User / Schema: campuspulse@XEPDB1
 -- =====================================================================
 
+WHENEVER SQLERROR EXIT SQL.SQLCODE;
+WHENEVER OSERROR EXIT FAILURE;
+
 -- 1. Oracle Compound Trigger for Conflict-Free Room Scheduling
 -- Uses COMPOUND TRIGGER to prevent ORA-04091 mutating table error
+-- and guarantees half-open interval [start_time, end_time) scheduling.
 CREATE OR REPLACE TRIGGER trg_no_overlapping_bookings
 FOR INSERT OR UPDATE ON bookings
 COMPOUND TRIGGER
@@ -25,7 +29,7 @@ COMPOUND TRIGGER
       g_bookings.DELETE;
    END BEFORE STATEMENT;
 
-   BEFORE EACH ROW IS
+   AFTER EACH ROW IS
    BEGIN
       IF :NEW.status = 'CONFIRMED' THEN
          g_bookings.EXTEND;
@@ -33,9 +37,9 @@ COMPOUND TRIGGER
          g_bookings(g_bookings.LAST).start_time := :NEW.start_time;
          g_bookings(g_bookings.LAST).end_time := :NEW.end_time;
          g_bookings(g_bookings.LAST).status := :NEW.status;
-         g_bookings(g_bookings.LAST).id := NVL(:NEW.id, -1);
+         g_bookings(g_bookings.LAST).id := :NEW.id;
       END IF;
-   END BEFORE EACH ROW;
+   END AFTER EACH ROW;
 
    AFTER STATEMENT IS
       v_conflict_count NUMBER := 0;
@@ -46,7 +50,7 @@ COMPOUND TRIGGER
          FROM bookings b
          WHERE b.room_id = g_bookings(i).room_id
            AND b.status = 'CONFIRMED'
-           AND b.id != g_bookings(i).id
+           AND (b.id != g_bookings(i).id OR g_bookings(i).id IS NULL)
            AND NOT (b.end_time <= g_bookings(i).start_time OR b.start_time >= g_bookings(i).end_time);
 
          IF v_conflict_count > 0 THEN
@@ -63,6 +67,7 @@ END trg_no_overlapping_bookings;
 /
 
 -- 2. Oracle View: v_dashboard_summary
+-- Aggregates room statuses and computes building-level occupancy rates
 CREATE OR REPLACE VIEW v_dashboard_summary AS
 SELECT 
     b.id AS building_id,
@@ -85,6 +90,7 @@ LEFT JOIN rooms r ON b.id = r.building_id
 GROUP BY b.id, b.code, b.name, b.floors, b.status;
 
 -- 3. Oracle View: v_room_live_status
+-- Evaluates real-time occupancy and active maintenance tickets per room
 CREATE OR REPLACE VIEW v_room_live_status AS
 SELECT 
     r.id AS room_id,
@@ -116,17 +122,32 @@ LEFT JOIN maintenance_tickets mt ON r.id = mt.room_id
 -- 4. Additional Oracle Performance Indexes
 BEGIN
    EXECUTE IMMEDIATE 'CREATE INDEX idx_rooms_bld_status ON rooms(building_id, status)';
-EXCEPTION WHEN OTHERS THEN NULL;
+EXCEPTION WHEN OTHERS THEN
+   IF SQLCODE != -955 AND SQLCODE != -1408 THEN RAISE; END IF;
 END;
 /
 BEGIN
    EXECUTE IMMEDIATE 'CREATE INDEX idx_bk_room_time ON bookings(room_id, start_time, end_time)';
-EXCEPTION WHEN OTHERS THEN NULL;
+EXCEPTION WHEN OTHERS THEN
+   IF SQLCODE != -955 AND SQLCODE != -1408 THEN RAISE; END IF;
+END;
+/
+BEGIN
+   EXECUTE IMMEDIATE 'CREATE INDEX idx_bk_user_id ON bookings(user_id)';
+EXCEPTION WHEN OTHERS THEN
+   IF SQLCODE != -955 AND SQLCODE != -1408 THEN RAISE; END IF;
 END;
 /
 BEGIN
    EXECUTE IMMEDIATE 'CREATE INDEX idx_mt_status_pri ON maintenance_tickets(status, priority)';
-EXCEPTION WHEN OTHERS THEN NULL;
+EXCEPTION WHEN OTHERS THEN
+   IF SQLCODE != -955 AND SQLCODE != -1408 THEN RAISE; END IF;
+END;
+/
+BEGIN
+   EXECUTE IMMEDIATE 'CREATE INDEX idx_events_start ON events(start_time)';
+EXCEPTION WHEN OTHERS THEN
+   IF SQLCODE != -955 AND SQLCODE != -1408 THEN RAISE; END IF;
 END;
 /
 

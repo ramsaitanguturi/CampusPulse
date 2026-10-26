@@ -1,14 +1,17 @@
 import time
+import logging
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 from sqlalchemy import text, and_, or_, not_, func, case
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, DatabaseError
 from ..models.entities import User, Building, Room, Booking, MaintenanceTicket, Event
 from ..schemas.schemas import (
     BookingCreate, MaintenanceTicketCreate, EventCreate,
     DashboardStats, BookingTrendItem, BuildingOccupancyItem
 )
+
+logger = logging.getLogger("campuspulse.service")
 
 class CampusService:
     @staticmethod
@@ -71,7 +74,6 @@ class CampusService:
          .group_by(Building.id, Building.code, Building.name)\
          .order_by(Building.id).all()
 
-
         building_occupancy = []
         for r in building_occupancy_rows:
             tot = r.total_rooms or 0
@@ -117,7 +119,7 @@ class CampusService:
         recent_tickets = CampusService.get_maintenance_tickets(db, limit=5)
 
         # 9. Upcoming events
-        upcoming_events = CampusService.get_events(db, limit=5)
+        upcoming_events = CampusService.get_events(db, limit=5, upcoming_only=True)
 
         return {
             "stats": stats,
@@ -174,8 +176,6 @@ class CampusService:
                 "maintenance_rooms": st["maint"],
             })
         return buildings_list
-
-
 
     @staticmethod
     def get_building_by_id(db: Session, building_id: int) -> Optional[Dict[str, Any]]:
@@ -249,7 +249,7 @@ class CampusService:
         room_type: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
-        DBMS NOT EXISTS Query Demonstration:
+        DBMS NOT EXISTS Query:
         Finds rooms where NOT EXISTS any overlapping CONFIRMED booking,
         and room status is not MAINTENANCE.
         """
@@ -289,7 +289,6 @@ class CampusService:
 
         res = db.execute(sql, params).mappings().all()
         return [dict(row) for row in res]
-
 
     @staticmethod
     def get_room_details(db: Session, room_id: int) -> Optional[Dict[str, Any]]:
@@ -354,16 +353,23 @@ class CampusService:
     @staticmethod
     def create_booking(db: Session, data: BookingCreate) -> Dict[str, Any]:
         """
-        Creates a room booking with strict conflict prevention at both
-        application transaction level and PostgreSQL exclusion constraint level.
-        Handles conflicts gracefully and returns informative API errors.
+        Creates a room booking with strict concurrency protection and transaction safety.
+        Uses pessimistic row-level locking (SELECT ... FOR UPDATE on Room row)
+        to serialize concurrent booking attempts for the same room in Oracle and PostgreSQL,
+        preventing race conditions. Enforces half-open interval [start_time, end_time).
         """
         # 1. Interval validity validation
         if data.end_time <= data.start_time:
             raise ValueError("Invalid time interval: End time must be strictly after start time.")
 
-        # 2. Check room exists and is not under maintenance
-        room = db.query(Room).filter(Room.id == data.room_id).first()
+        is_sqlite = "sqlite" in str(db.bind.url) if db.bind else False
+
+        # 2. Acquire exclusive lock on the Room row to serialize concurrent booking checks
+        room_query = db.query(Room).filter(Room.id == data.room_id)
+        if not is_sqlite:
+            room_query = room_query.with_for_update()
+        room = room_query.one_or_none()
+
         if not room:
             raise ValueError(f"Room with ID {data.room_id} does not exist.")
         if room.status == "MAINTENANCE":
@@ -374,8 +380,9 @@ class CampusService:
         if not user:
             raise ValueError(f"User with ID {data.user_id} does not exist.")
 
-        # 4. Transactional check for overlapping booking
-        # Mathematical interval overlap condition: NOT (existing.end_time <= new.start_time OR existing.start_time >= new.end_time)
+        # 4. Overlap check with existing active bookings
+        # Mathematical interval overlap condition for [s1, e1) and [s2, e2):
+        # NOT (existing.end_time <= new.start_time OR existing.start_time >= new.end_time)
         conflict_query = db.query(Booking, User).join(User, Booking.user_id == User.id).filter(
             Booking.room_id == data.room_id,
             Booking.status == "CONFIRMED",
@@ -392,6 +399,7 @@ class CampusService:
             conf_bk, conf_user = conflicting
             start_str = conf_bk.start_time.strftime("%Y-%m-%d %H:%M")
             end_str = conf_bk.end_time.strftime("%H:%M")
+            db.rollback()
             raise ConflictError(
                 f"Booking conflict: Room {room.room_number} is already booked for '{conf_bk.title}' "
                 f"by {conf_user.name} from {start_str} to {end_str}.",
@@ -404,7 +412,7 @@ class CampusService:
                 }
             )
 
-        # 5. Insert booking into database (exclusion constraint will also catch in Postgres)
+        # 5. Insert booking into database
         new_booking = Booking(
             room_id=data.room_id,
             user_id=data.user_id,
@@ -417,16 +425,15 @@ class CampusService:
             db.add(new_booking)
             db.commit()
             db.refresh(new_booking)
-        except IntegrityError as ie:
+        except Exception as ex:
             db.rollback()
-            # PostgreSQL exclusion constraint violation catch
-            err_msg = str(ie.orig).lower()
-            if "no_overlapping_bookings" in err_msg or "exclusion" in err_msg:
+            err_msg = str(ex).lower()
+            if "ora-20001" in err_msg or "overlapping" in err_msg or "exclusion" in err_msg:
                 raise ConflictError(
-                    f"Database exclusion constraint triggered: Room {room.room_number} has an overlapping booking during the requested time window.",
+                    f"Database conflict constraint triggered: Room {room.room_number} has an overlapping booking during the requested time window.",
                     conflicting_booking=None
                 )
-            raise ValueError(f"Database constraint error: {ie}")
+            raise ValueError(f"Database constraint error: {ex}")
 
         building = db.query(Building).filter(Building.id == room.building_id).first()
         return {
@@ -468,7 +475,7 @@ class CampusService:
         if user_id:
             query = query.filter(Booking.user_id == user_id)
 
-        rows = query.order_by(Booking.start_time.desc()).limit(limit).all()
+        rows = query.order_by(Booking.start_time.desc(), Booking.id.desc()).limit(limit).all()
         result = []
         for bk, r, b, u in rows:
             result.append({
@@ -490,6 +497,9 @@ class CampusService:
 
     @staticmethod
     def cancel_booking(db: Session, booking_id: int) -> bool:
+        """
+        Cancels an active booking in an atomic transaction.
+        """
         booking = db.query(Booking).filter(Booking.id == booking_id).first()
         if not booking:
             return False
@@ -517,7 +527,7 @@ class CampusService:
         if room_id:
             query = query.filter(MaintenanceTicket.room_id == room_id)
 
-        rows = query.order_by(MaintenanceTicket.reported_at.desc()).limit(limit).all()
+        rows = query.order_by(MaintenanceTicket.reported_at.desc(), MaintenanceTicket.id.desc()).limit(limit).all()
         result = []
         for t, r, b, u in rows:
             result.append({
@@ -579,25 +589,50 @@ class CampusService:
 
     @staticmethod
     def update_ticket_status(db: Session, ticket_id: int, new_status: str) -> Optional[Dict[str, Any]]:
+        """
+        Updates maintenance ticket status within a transaction.
+        Enforces consistent room availability policy:
+        - Resolving a ticket only restores room status if NO other active (OPEN/IN_PROGRESS) tickets exist.
+        - When all maintenance is cleared, checks if room is currently in an active confirmed booking window;
+          if yes -> OCCUPIED, else -> AVAILABLE.
+        """
         ticket = db.query(MaintenanceTicket).filter(MaintenanceTicket.id == ticket_id).first()
         if not ticket:
             return None
 
         ticket.status = new_status
+        now = datetime.now(timezone.utc)
+
         if new_status == "RESOLVED":
-            ticket.resolved_at = datetime.now(timezone.utc)
-            # Check if any other open tickets exist for this room
-            other_open = db.query(MaintenanceTicket).filter(
+            ticket.resolved_at = now
+            # Check if any OTHER active tickets exist for this room
+            other_active_count = db.query(MaintenanceTicket).filter(
                 MaintenanceTicket.room_id == ticket.room_id,
                 MaintenanceTicket.id != ticket.id,
                 MaintenanceTicket.status.in_(["OPEN", "IN_PROGRESS"])
             ).count()
-            if other_open == 0:
+
+            if other_active_count == 0:
                 room = db.query(Room).filter(Room.id == ticket.room_id).first()
-                if room and room.status == "MAINTENANCE":
-                    room.status = "AVAILABLE"
+                if room:
+                    # Check whether there is an active confirmed booking occurring right now
+                    active_booking = db.query(Booking).filter(
+                        Booking.room_id == room.id,
+                        Booking.status == "CONFIRMED",
+                        Booking.start_time <= now,
+                        Booking.end_time >= now
+                    ).first()
+
+                    if active_booking:
+                        room.status = "OCCUPIED"
+                    else:
+                        room.status = "AVAILABLE"
         else:
             ticket.resolved_at = None
+            if ticket.priority == "CRITICAL":
+                room = db.query(Room).filter(Room.id == ticket.room_id).first()
+                if room:
+                    room.status = "MAINTENANCE"
 
         db.commit()
         db.refresh(ticket)
@@ -622,13 +657,20 @@ class CampusService:
         }
 
     @staticmethod
-    def get_events(db: Session, limit: int = 50) -> List[Dict[str, Any]]:
+    def get_events(db: Session, limit: int = 50, upcoming_only: bool = True) -> List[Dict[str, Any]]:
+        """
+        Retrieves campus events with deterministic ordering.
+        If upcoming_only is True, filters to events ending at or after the current time.
+        """
+        now = datetime.now(timezone.utc)
         query = db.query(Event, Building, Room)\
             .join(Building, Event.building_id == Building.id)\
-            .outerjoin(Room, Event.room_id == Room.id)\
-            .order_by(Event.start_time.asc()).limit(limit)
+            .outerjoin(Room, Event.room_id == Room.id)
 
-        rows = query.all()
+        if upcoming_only:
+            query = query.filter(Event.end_time >= now)
+
+        rows = query.order_by(Event.start_time.asc(), Event.id.asc()).limit(limit).all()
         result = []
         for ev, b, r in rows:
             result.append({
@@ -649,8 +691,11 @@ class CampusService:
 
     @staticmethod
     def create_event(db: Session, data: EventCreate) -> Dict[str, Any]:
+        """
+        Validates event time interval, references, and room-building consistency.
+        """
         if data.end_time <= data.start_time:
-            raise ValueError("Event end time must be after start time.")
+            raise ValueError("Event end time must be strictly after start time.")
 
         building = db.query(Building).filter(Building.id == data.building_id).first()
         if not building:
@@ -661,6 +706,12 @@ class CampusService:
             room = db.query(Room).filter(Room.id == data.room_id).first()
             if not room:
                 raise ValueError(f"Room with ID {data.room_id} does not exist.")
+            # Consistency check: Room must belong to the specified building
+            if room.building_id != data.building_id:
+                raise ValueError(
+                    f"Room {room.room_number} (ID: {room.id}) belongs to building ID {room.building_id}, "
+                    f"not the specified building '{building.name}' (ID: {building.id})."
+                )
 
         new_event = Event(
             title=data.title.strip(),
@@ -697,10 +748,11 @@ class CampusService:
     @staticmethod
     def execute_analytics_query(db: Session, query_id: str) -> Dict[str, Any]:
         """
-        Executes DBMS Semester Project showcase queries with timing measurement
-        and returns columns and data records across Oracle SQL and PostgreSQL.
+        Executes DBMS showcase queries with exact timing measurements and correct aggregations.
+        Validates query identifiers (returns 404/KeyError if unknown).
+        Eliminates duplicate join row multiplication on multi-ticket rooms.
         """
-        is_oracle = "oracle" in str(db.bind.url)
+        is_oracle = "oracle" in str(db.bind.url) if db.bind else False
         limit_clause = "FETCH FIRST 10 ROWS ONLY" if is_oracle else "LIMIT 10"
 
         queries = {
@@ -730,22 +782,36 @@ ORDER BY b.start_time DESC
                 """.strip()
             },
             "aggregation_groupby": {
-                "title": "Aggregation & GROUP BY with HAVING",
+                "title": "Building Room Capacity & Active Tickets Summary",
                 "category": "AGGREGATION",
-                "description": "Calculates total room capacity, room count, and active ticket count per building.",
+                "description": "Calculates total room capacity, room count, and active ticket count per building using pre-aggregated subqueries.",
                 "sql": """
 SELECT 
     b.code AS building_code,
     b.name AS building_name,
-    COUNT(r.id) AS total_rooms,
-    SUM(r.capacity) AS total_capacity,
-    ROUND(AVG(r.capacity), 1) AS avg_room_capacity,
-    COUNT(mt.id) AS active_tickets
+    COALESCE(r_agg.total_rooms, 0) AS total_rooms,
+    COALESCE(r_agg.total_capacity, 0) AS total_capacity,
+    COALESCE(r_agg.avg_room_capacity, 0.0) AS avg_room_capacity,
+    COALESCE(t_agg.active_tickets, 0) AS active_tickets
 FROM buildings b
-JOIN rooms r ON b.id = r.building_id
-LEFT JOIN maintenance_tickets mt ON r.id = mt.room_id AND mt.status IN ('OPEN', 'IN_PROGRESS')
-GROUP BY b.id, b.code, b.name
-HAVING COUNT(r.id) > 0
+JOIN (
+    SELECT 
+        building_id,
+        COUNT(id) AS total_rooms,
+        SUM(capacity) AS total_capacity,
+        ROUND(AVG(capacity), 1) AS avg_room_capacity
+    FROM rooms
+    GROUP BY building_id
+) r_agg ON b.id = r_agg.building_id
+LEFT JOIN (
+    SELECT 
+        r2.building_id,
+        COUNT(mt.id) AS active_tickets
+    FROM maintenance_tickets mt
+    JOIN rooms r2 ON mt.room_id = r2.id
+    WHERE mt.status IN ('OPEN', 'IN_PROGRESS')
+    GROUP BY r2.building_id
+) t_agg ON b.id = t_agg.building_id
 ORDER BY total_capacity DESC
                 """.strip()
             },
@@ -812,27 +878,36 @@ ORDER BY occupancy_rate DESC
             }
         }
 
+        if query_id not in queries:
+            raise KeyError(f"Analytics query '{query_id}' not found. Available queries: {list(queries.keys())}")
 
-        query_info = queries.get(query_id, queries["multi_table_join"])
+        query_info = queries[query_id]
         sql_statement = query_info["sql"]
 
-        start_t = time.perf_counter()
-        result = db.execute(text(sql_statement))
-        elapsed_ms = round((time.perf_counter() - start_t) * 1000, 2)
+        try:
+            start_t = time.perf_counter()
+            result = db.execute(text(sql_statement))
+            elapsed_ms = round((time.perf_counter() - start_t) * 1000, 2)
 
-        keys = list(result.keys())
-        rows = [dict(zip(keys, [str(val) if isinstance(val, (datetime,)) else val for val in row])) for row in result.fetchall()]
+            keys = list(result.keys())
+            rows = [
+                dict(zip(keys, [str(val) if isinstance(val, (datetime,)) else val for val in row]))
+                for row in result.fetchall()
+            ]
 
-        return {
-            "title": query_info["title"],
-            "category": query_info["category"],
-            "description": query_info["description"],
-            "sql": sql_statement,
-            "row_count": len(rows),
-            "execution_time_ms": elapsed_ms,
-            "columns": keys,
-            "data": rows
-        }
+            return {
+                "title": query_info["title"],
+                "category": query_info["category"],
+                "description": query_info["description"],
+                "sql": sql_statement,
+                "row_count": len(rows),
+                "execution_time_ms": elapsed_ms,
+                "columns": keys,
+                "data": rows
+            }
+        except Exception as e:
+            logger.error(f"SQL execution error for query '{query_id}': {e}", exc_info=True)
+            raise RuntimeError(f"Database query execution failed for '{query_id}'.")
 
 
 class ConflictError(Exception):

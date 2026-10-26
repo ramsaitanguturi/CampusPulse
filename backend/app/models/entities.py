@@ -15,6 +15,10 @@ class User(Base):
     department = Column(String(100), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
+    __table_args__ = (
+        CheckConstraint("role IN ('STUDENT', 'FACULTY', 'ADMIN', 'STAFF')", name="chk_user_role"),
+    )
+
     bookings = relationship("Booking", back_populates="user", cascade="all, delete-orphan")
     maintenance_tickets = relationship("MaintenanceTicket", back_populates="user")
 
@@ -31,6 +35,11 @@ class Building(Base):
     description = Column(Text, nullable=True)
     status = Column(String(30), default="OPERATIONAL", nullable=False)  # OPERATIONAL, PARTIAL, MAINTENANCE
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("status IN ('OPERATIONAL', 'PARTIAL', 'MAINTENANCE')", name="chk_building_status"),
+        CheckConstraint("floors > 0", name="chk_building_floors_positive"),
+    )
 
     rooms = relationship("Room", back_populates="building", cascade="all, delete-orphan")
     events = relationship("Event", back_populates="building", cascade="all, delete-orphan")
@@ -52,6 +61,8 @@ class Room(Base):
 
     __table_args__ = (
         CheckConstraint("capacity > 0", name="chk_room_capacity_positive"),
+        CheckConstraint("status IN ('AVAILABLE', 'OCCUPIED', 'MAINTENANCE')", name="chk_room_status"),
+        CheckConstraint("room_type IN ('CLASSROOM', 'LAB', 'AUDITORIUM', 'CONFERENCE', 'STUDY_POD')", name="chk_room_type"),
         UniqueConstraint("building_id", "room_number", name="uq_building_room_number"),
     )
 
@@ -75,6 +86,7 @@ class Booking(Base):
 
     __table_args__ = (
         CheckConstraint("end_time > start_time", name="chk_booking_times_valid"),
+        CheckConstraint("status IN ('CONFIRMED', 'CANCELLED', 'COMPLETED')", name="chk_booking_status"),
     )
 
     room = relationship("Room", back_populates="bookings")
@@ -93,6 +105,11 @@ class MaintenanceTicket(Base):
     status = Column(String(20), default="OPEN", nullable=False)  # OPEN, IN_PROGRESS, RESOLVED
     reported_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     resolved_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint("priority IN ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL')", name="chk_ticket_priority"),
+        CheckConstraint("status IN ('OPEN', 'IN_PROGRESS', 'RESOLVED')", name="chk_ticket_status"),
+    )
 
     room = relationship("Room", back_populates="maintenance_tickets")
     user = relationship("User", back_populates="maintenance_tickets")
@@ -113,6 +130,7 @@ class Event(Base):
 
     __table_args__ = (
         CheckConstraint("end_time > start_time", name="chk_event_times_valid"),
+        CheckConstraint("category IN ('ACADEMIC', 'TECH', 'WORKSHOP', 'CULTURAL', 'ATHLETIC')", name="chk_event_category"),
     )
 
     building = relationship("Building", back_populates="events")

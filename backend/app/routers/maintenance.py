@@ -32,7 +32,10 @@ def create_ticket(data: MaintenanceTicketCreate, db: Session = Depends(get_db)):
     except ValueError as ve:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Ticket creation failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Ticket creation failed due to an internal server error."
+        )
 
 @router.patch("/{ticket_id}/status", response_model=MaintenanceTicketResponse)
 def update_ticket_status(ticket_id: int, body: MaintenanceStatusUpdate, db: Session = Depends(get_db)):

@@ -39,7 +39,10 @@ def create_booking(data: BookingCreate, db: Session = Depends(get_db)):
     except ValueError as ve:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Booking creation failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Booking creation failed due to an internal server error."
+        )
 
 @router.post("/{booking_id}/cancel", response_model=BookingCancelResponse)
 def cancel_booking(booking_id: int, db: Session = Depends(get_db)):

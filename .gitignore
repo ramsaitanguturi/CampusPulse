@@ -1,5 +1,9 @@
 # Python
 backend/venv/
+.venv/
+venv/
+.env
+*.env
 backend/.env
 __pycache__/
 *.pyc
@@ -13,3 +17,4 @@ frontend/node_modules/
 frontend/dist/
 *.log
 .DS_Store
+
