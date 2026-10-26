@@ -135,8 +135,22 @@ To prevent concurrent race conditions where two simultaneous transactions attemp
 
 ### 2. Half-Open Interval Scheduling: `[start_time, end_time)`
 Booking overlap condition mathematically defined as:
-$$\text{Overlap} \iff \neg(\text{existing.end\_time} \le \text{new.start\_time} \lor \text{existing.start\_time} \ge \text{new.end\_time})$$
-- Back-to-back bookings (e.g., 10:00–11:00 and 11:00–12:00) are permitted without false-positive rejections.
+[
+\text{Overlap} \iff \neg \left(
+\text{existing.end_time} \leq \text{new.start_time}
+\lor
+\text{existing.start_time} \geq \text{new.end_time}
+\right)
+]
+
+Equivalent simplified condition:
+
+[
+\text{Overlap} \iff
+(\text{existing.start_time} < \text{new.end_time})
+\land
+(\text{new.start_time} < \text{existing.end_time})
+]- Back-to-back bookings (e.g., 10:00–11:00 and 11:00–12:00) are permitted without false-positive rejections.
 - Cancelled bookings (`status = 'CANCELLED'`) do not block time slots.
 
 ### 3. Non-Inflating Multi-Table Aggregation with Pre-Aggregated Subqueries
