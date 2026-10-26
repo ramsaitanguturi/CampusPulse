@@ -134,25 +134,29 @@ To prevent concurrent race conditions where two simultaneous transactions attemp
 - If a direct SQL execution attempts an overlapping insert, Oracle's `TRG_NO_OVERLAPPING_BOOKINGS` compound trigger raises application error `-20001`, rolling back the transaction.
 
 ### 2. Half-Open Interval Scheduling: `[start_time, end_time)`
+
 Booking overlap condition mathematically defined as:
-[
+
+```math
 \text{Overlap} \iff \neg \left(
-\text{existing.end_time} \leq \text{new.start_time}
+\text{existing.end\_time} \leq \text{new.start\_time}
 \lor
-\text{existing.start_time} \geq \text{new.end_time}
+\text{existing.start\_time} \geq \text{new.end\_time}
 \right)
-]
+```
 
-Equivalent simplified condition:
+**Equivalent simplified condition:**
 
-[
+```math
 \text{Overlap} \iff
-(\text{existing.start_time} < \text{new.end_time})
+(\text{existing.start\_time} < \text{new.end\_time})
 \land
-(\text{new.start_time} < \text{existing.end_time})
-]- Back-to-back bookings (e.g., 10:00–11:00 and 11:00–12:00) are permitted without false-positive rejections.
-- Cancelled bookings (`status = 'CANCELLED'`) do not block time slots.
+(\text{new.start\_time} < \text{existing.end\_time})
+```
 
+- Back-to-back bookings (e.g., 10:00–11:00 and 11:00–12:00) are permitted without false-positive rejections.
+- Cancelled bookings (`status = 'CANCELLED'`) do not block time slots.
+  
 ### 3. Non-Inflating Multi-Table Aggregation with Pre-Aggregated Subqueries
 When joining independent one-to-many relationships (e.g., a building has multiple rooms, and rooms have multiple maintenance tickets), a naive `JOIN` causes row multiplication and inflates aggregate counts:
 ```sql
