@@ -361,6 +361,11 @@ CampusPulse includes 22 automated tests covering unit logic, concurrency, databa
 backend\venv\Scripts\python.exe -m pytest -v
 ```
 
+The suite needs no database setup: `conftest.py` seeds a throwaway SQLite database through
+`init_db.py` before the app is imported, so the mutating tests (bookings, tickets, events) never
+touch the Oracle schema configured in `.env`. To run against a specific engine instead, set
+`DATABASE_URL` first — the 5 Oracle metadata tests then run rather than skipping.
+
 ### Test Coverage Summary:
 - **`test_health` & `test_root`**: API availability.
 - **`test_dashboard_stats` & `test_buildings_endpoint`**: Multi-table aggregation verification.
