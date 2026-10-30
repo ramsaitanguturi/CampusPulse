@@ -147,9 +147,9 @@ Navigate to **`http://localhost:5173`** in your browser.
 > *"Professor, even if someone bypasses our web application entirely and executes a raw SQL INSERT into Oracle, the database kernel will still reject overlapping bookings via our PL/SQL Compound Trigger. Furthermore, standard triggers throw `ORA-04091 mutating-table` error when querying the table being inserted into. We solved this using a COMPOUND TRIGGER."*
 
 ### Demonstration in SQL\*Plus:
-Open PowerShell and run SQL\*Plus:
+Open PowerShell and connect via SQL\*Plus using secure credential entry (SQL\*Plus prompts for password securely without terminal echoing):
 ```powershell
-sqlplus campuspulse/campuspulse123@localhost:1521/XEPDB1
+sqlplus campuspulse@localhost:1521/XEPDB1
 ```
 
 Run Query 17 from `sql_demonstrations.sql`:

@@ -5,6 +5,14 @@
 -- Note: Uses PostgreSQL extensions (btree_gist) and exclusion constraints (EXCLUDE USING gist).
 -- For Oracle Database 21c authoritative schema, use oracle_schema.sql.
 -- =====================================================================
+-- WARNING: DESTRUCTIVE DDL SCRIPT - DROPS EXISTING TABLES AND VIEWS
+-- Executing this script drops views and tables (CASCADE) permanently deleting all data.
+-- BACKUP INSTRUCTIONS:
+-- Prior to running, back up your database using pg_dump:
+--     pg_dump -U postgres -d campuspulse -f campuspulse_pg_backup.sql
+-- CONFIRMATION REQUIREMENT:
+-- Run only if you intend to wipe existing tables and reinitialize from scratch.
+-- =====================================================================
 
 -- 1. Enable btree_gist for multi-column range exclusion constraints
 CREATE EXTENSION IF NOT EXISTS btree_gist;

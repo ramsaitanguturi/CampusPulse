@@ -48,17 +48,29 @@ Start-Service OracleOraDB21Home1TNSListener
 
 Oracle 21c utilizes a Container Database (CDB) and Pluggable Database (PDB) hierarchy. CampusPulse resides in the default pluggable container `XEPDB1`.
 
+> [!WARNING]
+> **DESTRUCTIVE OPERATION WARNING**: Running `create_oracle_user.sql` executes `DROP USER campuspulse CASCADE`, permanently purging the existing `campuspulse` user and all tables, views, triggers, and stored records!
+>
+> **Backup Instructions**: If an existing schema has data you wish to keep, execute an Oracle Data Pump Export prior to running this script:
+> ```powershell
+> expdp campuspulse directory=DATA_PUMP_DIR dumpfile=campuspulse_pre_drop.dmp logfile=backup.log
+> ```
+> **Confirmation**: Run this script only if you have verified that backups are complete or that any existing schema is intended to be completely reset.
+
 ### SQL Script: `create_oracle_user.sql`
 Run the provided script using `sqlplus` as `sysdba`:
 ```powershell
 sqlplus / as sysdba @backend\scripts\create_oracle_user.sql
 ```
 
-The script performs the following idempotent provisioning:
+The script prompts securely for the new user's password without echoing to the screen (`ACCEPT ... HIDE`), eliminating hardcoded credentials:
 ```sql
 ALTER SESSION SET CONTAINER = XEPDB1;
 
--- Drop user if exists
+-- Secure password prompt without echoing
+ACCEPT campuspulse_password CHAR PROMPT 'Enter password for campuspulse: ' HIDE
+
+-- Drop existing user if present (Destructive cascade)
 BEGIN
    EXECUTE IMMEDIATE 'DROP USER campuspulse CASCADE';
 EXCEPTION
@@ -67,8 +79,8 @@ EXCEPTION
 END;
 /
 
--- Create dedicated project user
-CREATE USER campuspulse IDENTIFIED BY campuspulse123
+-- Create dedicated project user with supplied credentials
+CREATE USER campuspulse IDENTIFIED BY "&campuspulse_password"
 DEFAULT TABLESPACE USERS
 TEMPORARY TABLESPACE TEMP
 QUOTA UNLIMITED ON USERS;
@@ -76,6 +88,7 @@ QUOTA UNLIMITED ON USERS;
 -- Grant required enterprise privileges
 GRANT CONNECT, RESOURCE, CREATE VIEW, CREATE TABLE, CREATE SEQUENCE TO campuspulse;
 
+UNDEFINE campuspulse_password;
 EXIT;
 ```
 
@@ -85,10 +98,19 @@ EXIT;
 
 You can compile the full schema using either **SQL\*Plus** (Oracle Native CLI) or the automated **Python backend initializer**.
 
-### Option A: Deployment via SQL\*Plus CLI
-Execute the pure Oracle DDL script `oracle_schema.sql`:
+> [!WARNING]
+> **DESTRUCTIVE DDL WARNING**: `oracle_schema.sql` drops and purges all existing CampusPulse tables and views before recreating them.
+>
+> **Backup Instructions**:
+> ```powershell
+> expdp campuspulse directory=DATA_PUMP_DIR dumpfile=campuspulse_tables_pre_rebuild.dmp logfile=export.log
+> ```
+> **Confirmation**: Execute only when preparing a fresh schema deployment.
+
+### Option A: Deployment via SQL\*Plus CLI (Secure Credential Entry)
+Execute the pure Oracle DDL script `oracle_schema.sql` using secure credential entry (SQL\*Plus prompts for the password silently without terminal echoing):
 ```powershell
-sqlplus campuspulse/campuspulse123@localhost:1521/XEPDB1 @backend\scripts\oracle_schema.sql
+sqlplus campuspulse@localhost:1521/XEPDB1 @backend\scripts\oracle_schema.sql
 ```
 
 This compiles:
@@ -100,8 +122,8 @@ This compiles:
 
 ### Option B: Automated Deployment & Seeding via Python
 ```powershell
-# From the project root
-$env:DATABASE_URL="oracle+oracledb://campuspulse:campuspulse123@localhost:1521/?service_name=XEPDB1"
+# From the project root (provide your actual configured password in the connection URL)
+$env:DATABASE_URL="oracle+oracledb://campuspulse:<your_secure_password>@localhost:1521/?service_name=XEPDB1"
 backend\venv\Scripts\python.exe backend\scripts\init_db.py
 ```
 
@@ -115,7 +137,7 @@ CampusPulse uses the official **`python-oracledb`** driver (v26.0+) running in h
 
 ### Connection String Format
 ```ini
-DATABASE_URL=oracle+oracledb://campuspulse:campuspulse123@localhost:1521/?service_name=XEPDB1
+DATABASE_URL=oracle+oracledb://campuspulse:<your_secure_password>@localhost:1521/?service_name=XEPDB1
 ```
 
 ### Connection Pool Configuration (`backend/app/database.py`)

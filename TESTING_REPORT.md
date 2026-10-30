@@ -22,7 +22,10 @@
 
 ## 2. Test Execution Summary
 
-### Primary Test Run: Authoritative Oracle Database 21c Backend
+This report explicitly distinguishes between **independently reproducible offline test results** (which can be executed by evaluators on any grading system without Oracle installed) and **previously recorded live Oracle Database 21c audit results** (which require a running Oracle Database 21c XE instance):
+
+### Category A: Independently Reproducible Offline Test Run (SQLite Mode — 27 Passing Tests)
+*Evaluator verification path: Can be run immediately on any environment without database installation.*
 ```
 ============================= test session starts =============================
 platform win32 -- Python 3.12.10, pytest-9.1.1, pluggy-1.7.0 -- C:\Users\ramsa\Desktop\CampusPulse\backend\venv\Scripts\python.exe
@@ -32,17 +35,17 @@ configfile: pytest.ini
 plugins: anyio-4.15.1
 collected 45 items
 
-Passed:     45
+Passed:     27 (API contracts, relational constraints, FK cascades, atomicity, dashboard views)
+Skipped:    18 (Oracle PL/SQL compound triggers, cross-session row-locking & SQL*Plus demo tests)
 Failed:      0
-Skipped:     0
-Not Run:     0
 Total:      45
-Execution Time: ~5.22 seconds
-Status:     100% PASSING (GREEN)
+Execution Time: ~2.69 seconds
+Status:     100% PASSING for applicable offline test suite (GREEN)
 ==============================================================================
 ```
 
-### Secondary Test Run: Offline Fallback SQLite Mode (`DATABASE_URL=sqlite:///...`)
+### Category B: Previously Recorded Production Test Run (Live Oracle Database 21c XE — 45 Passing Tests)
+*Authoritative DBMS verification path: Previously recorded against the live Oracle 21c XE instance (`XEPDB1`).*
 ```
 ============================= test session starts =============================
 platform win32 -- Python 3.12.10, pytest-9.1.1, pluggy-1.7.0 -- C:\Users\ramsa\Desktop\CampusPulse\backend\venv\Scripts\python.exe
@@ -52,13 +55,12 @@ configfile: pytest.ini
 plugins: anyio-4.15.1
 collected 45 items
 
-Passed:     27
+Passed:     45 (Full enterprise suite including Oracle data dictionary, triggers & row locks)
 Failed:      0
-Skipped:    18 (Oracle PL/SQL trigger, row-locking & SQL*Plus demo tests safely skipped)
-Not Run:     0
+Skipped:     0
 Total:      45
-Execution Time: ~3.07 seconds
-Status:     PASSING (GREEN)
+Execution Time: ~5.22 seconds
+Status:     100% PASSING (GREEN)
 ==============================================================================
 ```
 
@@ -69,7 +71,7 @@ Status:     PASSING (GREEN)
 ### Suite 1: Web API & Business Logic Integration (`backend/tests/test_api.py`)
 Verifies REST API contracts, status code mappings, and service operations:
 
-| # | Test Function Name | Tested Functionality | Outcome (Oracle) | Outcome (SQLite) |
+| # | Test Function Name | Tested Functionality | Recorded (Oracle 21c XE) | Reproducible (SQLite Mode) |
 | :--- | :--- | :--- | :--- | :--- |
 | 1 | `test_health` | Verifies `/health` endpoint returns HTTP 200 `{"status": "healthy"}` | **PASSED** | **PASSED** |
 | 2 | `test_root` | Verifies `/` root service metadata and documentation links | **PASSED** | **PASSED** |
@@ -93,7 +95,7 @@ Verifies REST API contracts, status code mappings, and service operations:
 ### Suite 2: High-Concurrency Stress Test (`backend/tests/test_concurrency.py`)
 Simulates race conditions and simultaneous booking requests:
 
-| # | Test Function Name | Tested Functionality | Outcome (Oracle) | Outcome (SQLite) |
+| # | Test Function Name | Tested Functionality | Recorded (Oracle 21c XE) | Reproducible (SQLite Mode) |
 | :--- | :--- | :--- | :--- | :--- |
 | 17 | `test_concurrent_booking_conflict` | 4 concurrent threads attempt to reserve the exact same room for the exact same slot. Verifies **Pessimistic Row Locking (`SELECT FOR UPDATE`)** serializes transactions: exactly 1 succeeds (HTTP 201) and exactly 3 are rejected with HTTP 409 Conflict. | **PASSED** | **SKIPPED** |
 | 18 | `test_concurrent_two_simultaneous_api_requests_same_room_and_time` | 2 simultaneous API requests for the exact same room and time. Exactly 1 commits, 1 rejected with HTTP 409 Conflict; zero partial data persisted. | **PASSED** | **SKIPPED** |
@@ -105,7 +107,7 @@ Simulates race conditions and simultaneous booking requests:
 ### Suite 3: Database Integrity, Constraints & ACID Tests (`backend/tests/test_database_integrity.py`)
 Audits schema constraints, direct trigger enforcement, and transaction rollbacks:
 
-| # | Test Function Name | Tested Functionality | Outcome (Oracle) | Outcome (SQLite) |
+| # | Test Function Name | Tested Functionality | Recorded (Oracle 21c XE) | Reproducible (SQLite Mode) |
 | :--- | :--- | :--- | :--- | :--- |
 | 21 | `test_foreign_key_violation_orphaned_room` | Inserting a room with non-existent `building_id` raises `IntegrityError` (`ORA-02291` on Oracle, `FOREIGN KEY constraint failed` on SQLite via `PRAGMA foreign_keys = ON`). | **PASSED** | **PASSED** |
 | 22 | `test_foreign_key_violation_orphaned_booking` | Inserting a booking with non-existent `user_id` or `room_id` raises `IntegrityError`. | **PASSED** | **PASSED** |
@@ -125,7 +127,7 @@ Audits schema constraints, direct trigger enforcement, and transaction rollbacks
 ### Suite 4: Oracle Database Integration (`backend/tests/test_oracle_integration.py`)
 Validates Oracle data dictionary objects, triggers, and query compilation:
 
-| # | Test Function Name | Tested Functionality | Outcome (Oracle) | Outcome (SQLite) |
+| # | Test Function Name | Tested Functionality | Recorded (Oracle 21c XE) | Reproducible (SQLite Mode) |
 | :--- | :--- | :--- | :--- | :--- |
 | 33 | `test_oracle_schema_tables_and_metadata` | Audits Oracle `USER_TABLES` metadata for all 6 entities. | **PASSED** | **SKIPPED** |
 | 34 | `test_oracle_trigger_compilation_and_validity` | Verifies `trg_no_overlapping_bookings` is `ENABLED` in `USER_TRIGGERS` & `VALID` in `USER_OBJECTS`. | **PASSED** | **SKIPPED** |
@@ -142,7 +144,7 @@ Validates Oracle data dictionary objects, triggers, and query compilation:
 ### Suite 5: SQL Syllabus Demonstration Verification (`backend/tests/test_sql_demonstrations.py`)
 Validates execution of the 20 demonstration queries:
 
-| # | Test Function Name | Tested Functionality | Outcome (Oracle) | Outcome (SQLite) |
+| # | Test Function Name | Tested Functionality | Recorded (Oracle 21c XE) | Reproducible (SQLite Mode) |
 | :--- | :--- | :--- | :--- | :--- |
 | 42 | `test_sql_demo_basic_select_and_ordering` | Verifies `SELECT`, `WHERE`, and multi-level `ORDER BY`. | **PASSED** | **SKIPPED** |
 | 43 | `test_sql_demo_distinct_and_joins` | Verifies `DISTINCT`, `INNER JOIN`, `LEFT JOIN`, `RIGHT JOIN`, and 4-Way Join. | **PASSED** | **SKIPPED** |
@@ -151,9 +153,9 @@ Validates execution of the 20 demonstration queries:
 
 ---
 
-## 4. Real Oracle 21c Multi-Session Concurrency & Compound Trigger Audit
+## 4. Previously Recorded Real Oracle 21c Multi-Session Concurrency & Compound Trigger Audit
 
-Executed directly against Oracle Database 21c (`XEPDB1`) using independent Oracle sessions:
+This audit represents previously recorded verification executed directly against live Oracle Database 21c (`XEPDB1`) using two independent database sessions:
 
 ```
 ======================================================================
@@ -207,11 +209,11 @@ CAMPUSPULSE ORACLE DATABASE 21c DIRECT VERIFICATION
 
 ```powershell
 cd frontend
-npm ci
-npm run build
+npm.cmd ci
+npm.cmd run build
 ```
 
-### Actual Command Output
+### Actual Clean Production Build Output
 ```
 > frontend@0.0.0 build
 > tsc -b && vite build
@@ -224,35 +226,38 @@ computing gzip size...
 dist/index.html                   1.32 kB │ gzip:   0.74 kB
 dist/assets/index-RqpDRpDA.css   44.22 kB │ gzip:   7.97 kB
 dist/assets/index-Bc-exCWh.js   714.65 kB │ gzip: 201.33 kB
-✓ built in 1.07s (0 TypeScript errors)
+✓ built in 1.04s (0 TypeScript errors)
 ```
 
 ---
 
 ## 6. Verification Commands for Viva & Grading
 
-To reproduce this testing report from a clean environment:
-
-```powershell
-# 1. Run all 45 backend and Oracle tests
-backend\venv\Scripts\python.exe -m pytest -v
-
-# 2. Run the 9-point Oracle Schema Integrity check
-backend\venv\Scripts\python.exe backend\scripts\verify_db.py
-
-# 3. Execute the 20 SQL Demonstrations via SQL*Plus
-sqlplus campuspulse/campuspulse123@localhost:1521/XEPDB1 @backend\scripts\sql_demonstrations.sql
-
-# 4. Verify Frontend TypeScript & Production Build
-cd frontend; npm.cmd ci; npm.cmd run build
-```
-
-### Reproducing Offline Unit Tests (if Oracle is unavailable)
+### 1. Independently Reproduce the Offline Test Suite (27 Passing Tests)
+To independently verify the test suite on any evaluation machine without Oracle installed:
 ```powershell
 $env:DATABASE_URL="sqlite:///./campuspulse_test.db"
 backend\venv\Scripts\python.exe backend\scripts\init_db.py
 backend\venv\Scripts\python.exe -m pytest -v
-# Yields: 27 passed, 18 skipped, 0 failed
+Remove-Item ./campuspulse_test.db
+# Expected: 27 passed, 18 skipped, 0 failed in ~2.7 seconds
+```
+
+### 2. Verify Against Live Oracle Database 21c (When Oracle XE is Running)
+```powershell
+# Run all 45 automated tests (including Oracle integration & row locking):
+backend\venv\Scripts\python.exe -m pytest -v
+
+# Run the 9-point Oracle Schema Integrity audit tool:
+backend\venv\Scripts\python.exe backend\scripts\verify_db.py
+
+# Execute the 20 SQL Syllabus Demonstrations via SQL*Plus with secure credential entry:
+sqlplus campuspulse@localhost:1521/XEPDB1 @backend\scripts\sql_demonstrations.sql
+```
+
+### 3. Verify Frontend Clean Build & TypeScript Compilation
+```powershell
+cd frontend; npm.cmd ci; npm.cmd run build
 ```
 
 

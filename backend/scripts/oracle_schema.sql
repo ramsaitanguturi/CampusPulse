@@ -4,6 +4,26 @@
 -- User / Schema: campuspulse@XEPDB1
 -- File: oracle_schema.sql
 -- 
+-- =====================================================================
+-- WARNING: DESTRUCTIVE DDL SCRIPT - OBJECT DROP & SCHEMA RECREATION
+-- =====================================================================
+-- Executing Section 1 of this script DROPS and PURGES all existing
+-- CampusPulse database objects:
+--   - Views : v_room_live_status, v_dashboard_summary
+--   - Tables: events, maintenance_tickets, bookings, rooms, buildings, users
+-- All existing persisted rows in these tables will be PERMANENTLY PURGED.
+--
+-- BACKUP INSTRUCTIONS:
+-- Prior to executing this script against an existing schema, generate an
+-- Oracle Data Pump export to safeguard your current data:
+--     expdp campuspulse directory=DATA_PUMP_DIR dumpfile=campuspulse_pre_schema.dmp logfile=schema_backup.log
+-- Or export table DDL & data via Oracle SQL Developer / SQL*Plus.
+--
+-- CONFIRMATION REQUIREMENT:
+-- Run this script ONLY after confirming that any required data has been
+-- backed up and you intend to initialize clean empty schema structures.
+-- =====================================================================
+-- 
 -- Comprehensive Oracle DDL script defining:
 -- 1. Idempotent object drops (tables, views, triggers, indexes)
 -- 2. 6 Relational 3NF Entities in proper referential dependency order
@@ -18,6 +38,12 @@ WHENEVER OSERROR EXIT FAILURE;
 
 SET ECHO ON;
 SET FEEDBACK ON;
+
+PROMPT =====================================================================
+PROMPT [WARNING] THIS SCRIPT IS DESTRUCTIVE!
+PROMPT Existing CampusPulse tables and views will be dropped and purged.
+PROMPT Verify backups (e.g. expdp) before proceeding.
+PROMPT =====================================================================
 
 -- ---------------------------------------------------------------------
 -- 1. DROP EXISTING OBJECTS SAFELY (Reverse Dependency Order)
