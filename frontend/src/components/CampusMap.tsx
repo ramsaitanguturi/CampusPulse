@@ -1,14 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Building as BuildingIcon, 
   DoorClosed, 
-  Users, 
-  Wrench, 
   CheckCircle2, 
   AlertTriangle, 
   Calendar,
-  Layers,
-  Info,
   Maximize2,
   X
 } from 'lucide-react';
@@ -28,12 +23,6 @@ export const CampusMap: React.FC<CampusMapProps> = ({ buildings, onOpenBookingMo
   const [loadingRoom, setLoadingRoom] = useState(false);
   const [filterFloor, setFilterFloor] = useState<number | 'all'>('all');
 
-  useEffect(() => {
-    if (selectedBuildingId) {
-      loadBuildingDetails(selectedBuildingId);
-    }
-  }, [selectedBuildingId]);
-
   const loadBuildingDetails = async (id: number) => {
     setLoadingDetails(true);
     try {
@@ -46,6 +35,12 @@ export const CampusMap: React.FC<CampusMapProps> = ({ buildings, onOpenBookingMo
       setLoadingDetails(false);
     }
   };
+
+  useEffect(() => {
+    if (selectedBuildingId) {
+      loadBuildingDetails(selectedBuildingId);
+    }
+  }, [selectedBuildingId]);
 
   const handleSelectRoom = async (roomId: number) => {
     setLoadingRoom(true);

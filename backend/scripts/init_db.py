@@ -74,11 +74,11 @@ FOR INSERT OR UPDATE ON bookings
 COMPOUND TRIGGER
 
    TYPE t_booking_rec IS RECORD (
-      room_id NUMBER,
-      start_time TIMESTAMP WITH TIME ZONE,
-      end_time TIMESTAMP WITH TIME ZONE,
-      status VARCHAR2(30),
-      id NUMBER
+      room_id    bookings.room_id%TYPE,
+      start_time bookings.start_time%TYPE,
+      end_time   bookings.end_time%TYPE,
+      status     bookings.status%TYPE,
+      id         bookings.id%TYPE
    );
    TYPE t_booking_list IS TABLE OF t_booking_rec;
    g_bookings t_booking_list := t_booking_list();
@@ -184,7 +184,10 @@ ORACLE_INDEXES_DDL = [
     "CREATE INDEX idx_bk_room_time ON bookings(room_id, start_time, end_time)",
     "CREATE INDEX idx_bk_user_id ON bookings(user_id)",
     "CREATE INDEX idx_mt_status_pri ON maintenance_tickets(status, priority)",
+    "CREATE INDEX idx_mt_room_id ON maintenance_tickets(room_id)",
+    "CREATE INDEX idx_mt_user_id ON maintenance_tickets(user_id)",
     "CREATE INDEX idx_events_start ON events(start_time)",
+    "CREATE INDEX idx_events_bld_room ON events(building_id, room_id)",
 ]
 
 def init_database(use_sqlplus: bool = False):

@@ -7,7 +7,7 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ onRefresh, loading }) => {
-  const [time, setTime] = useState(new Date().toLocaleTimeString());
+  const [time, setTime] = useState(() => new Date().toLocaleTimeString());
 
   useEffect(() => {
     const timer = setInterval(() => {

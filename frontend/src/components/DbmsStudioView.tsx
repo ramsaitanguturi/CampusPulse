@@ -4,10 +4,6 @@ import {
   Play, 
   Terminal, 
   Clock, 
-  CheckCircle2, 
-  Layers, 
-  BookOpen, 
-  Sparkles,
   Copy,
   Check
 } from 'lucide-react';
@@ -20,22 +16,6 @@ export const DbmsStudioView: React.FC = () => {
   const [executionResult, setExecutionResult] = useState<QueryExecutionResult | null>(null);
   const [executing, setExecuting] = useState(false);
   const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    loadCatalogue();
-  }, []);
-
-  const loadCatalogue = async () => {
-    try {
-      const data = await api.getAnalyticsQueries();
-      setQueries(data);
-      if (data.length > 0) {
-        handleExecute(data[0].id);
-      }
-    } catch (err) {
-      console.error('Failed to load query catalogue:', err);
-    }
-  };
 
   const handleExecute = async (queryId: string) => {
     setSelectedQueryId(queryId);
@@ -57,6 +37,22 @@ export const DbmsStudioView: React.FC = () => {
       setTimeout(() => setCopied(false), 2000);
     }
   };
+
+  const loadCatalogue = async () => {
+    try {
+      const data = await api.getAnalyticsQueries();
+      setQueries(data);
+      if (data.length > 0) {
+        handleExecute(data[0].id);
+      }
+    } catch (err) {
+      console.error('Failed to load query catalogue:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadCatalogue();
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -90,6 +86,7 @@ export const DbmsStudioView: React.FC = () => {
               key={q.id}
               id={`query-tab-${q.id}`}
               onClick={() => handleExecute(q.id)}
+              disabled={executing}
               className={`p-3.5 rounded-2xl border text-left transition-all ${
                 isSelected
                   ? 'bg-cyan-500/15 border-cyan-400/80 shadow-lg shadow-cyan-950 glow-cyan text-white'
@@ -102,7 +99,7 @@ export const DbmsStudioView: React.FC = () => {
                 }`}>
                   {q.category}
                 </span>
-                {isSelected && <Play className="w-3 h-3 text-cyan-400 fill-cyan-400" />}
+                {isSelected && <Play className={`w-3 h-3 text-cyan-400 fill-cyan-400 ${executing ? 'animate-spin' : ''}`} />}
               </div>
 
               <div className="text-xs font-bold mt-2 truncate">
@@ -178,32 +175,38 @@ export const DbmsStudioView: React.FC = () => {
                     </tr>
                   ) : (
                     executionResult.data.map((row, idx) => (
-                      <tr key={idx} className="hover:bg-cyan-950/20 transition-colors">
-                        {executionResult.columns.map((col) => (
-                          <td key={col} className="py-2.5 px-4 whitespace-nowrap">
-                            {row[col] !== null && row[col] !== undefined ? String(row[col]) : <span className="text-slate-600">NULL</span>}
-                          </td>
-                        ))}
+                      <tr 
+                        key={idx} 
+                        className="hover:bg-cyan-500/5 transition-colors"
+                      >
+                        {executionResult.columns.map((col) => {
+                          const val = row[col];
+                          const isOccupied = val === 'OCCUPIED' || val === 'CRITICAL';
+                          const isAvail = val === 'AVAILABLE' || val === 'OPERATIONAL' || val === 'RESOLVED';
+                          const isMaint = val === 'MAINTENANCE' || val === 'IN_PROGRESS';
+
+                          return (
+                            <td key={col} className="py-2 px-4 whitespace-nowrap">
+                              {isOccupied ? (
+                                <span className="text-rose-400 font-semibold">{String(val)}</span>
+                              ) : isAvail ? (
+                                <span className="text-emerald-400 font-semibold">{String(val)}</span>
+                              ) : isMaint ? (
+                                <span className="text-amber-400 font-semibold">{String(val)}</span>
+                              ) : typeof val === 'number' && col.includes('rate') ? (
+                                <span className="text-cyan-300 font-bold">{val}%</span>
+                              ) : (
+                                String(val ?? 'NULL')
+                              )}
+                            </td>
+                          );
+                        })}
                       </tr>
                     ))
                   )}
                 </tbody>
               </table>
             </div>
-          </div>
-
-          {/* Educational Viva Explanation Box */}
-          <div className="p-4 rounded-2xl glass-panel border border-cyan-500/20 text-xs text-slate-300 space-y-2 font-mono">
-            <div className="flex items-center space-x-2 text-cyan-400 font-bold">
-              <BookOpen className="w-4 h-4" />
-              <span>DBMS Viva Presentation Talking Points:</span>
-            </div>
-            <ul className="list-disc pl-5 space-y-1 text-slate-400 text-[11px]">
-              <li><strong>Mathematical Isolation:</strong> All bookings enforce exclusion constraints via GiST indices preventing time overlap at the DBMS engine layer.</li>
-              <li><strong>Dynamic Aggregation:</strong> Dashboard statistics are computed dynamically using SQL joins and grouped aggregations rather than static mocks.</li>
-              <li><strong>Temporal Interval Checks:</strong> Subquery availability runs correlated NOT EXISTS evaluations against active time ranges.</li>
-              <li><strong>Database Normalization:</strong> 3NF relational schema across Users, Buildings, Rooms, Bookings, Tickets, and Events.</li>
-            </ul>
           </div>
         </div>
       )}

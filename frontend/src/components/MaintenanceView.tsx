@@ -44,10 +44,6 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({
   const [priority, setPriority] = useState<string>('MEDIUM');
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    fetchTickets();
-  }, [statusFilter, priorityFilter]);
-
   const fetchTickets = async () => {
     setLoading(true);
     try {
@@ -62,6 +58,10 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchTickets();
+  }, [statusFilter, priorityFilter]);
 
   const handleCreateTicket = async (e: React.FormEvent) => {
     e.preventDefault();

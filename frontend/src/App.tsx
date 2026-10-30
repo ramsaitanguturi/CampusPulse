@@ -27,10 +27,6 @@ export function App() {
   const [isMaintenanceModalOpen, setIsMaintenanceModalOpen] = useState(false);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
 
-  useEffect(() => {
-    loadAllData();
-  }, []);
-
   const loadAllData = async () => {
     setLoading(true);
     setError(null);
@@ -52,6 +48,10 @@ export function App() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadAllData();
+  }, []);
 
   const handleOpenBookingForRoom = (room: Room) => {
     setPreselectedRoom(room);

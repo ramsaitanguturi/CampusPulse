@@ -2,13 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { 
   DoorClosed, 
   Search, 
-  Filter, 
-  Clock, 
-  CheckCircle2, 
-  AlertTriangle, 
-  Calendar,
-  Layers,
-  Sparkles,
   Zap,
   Users
 } from 'lucide-react';

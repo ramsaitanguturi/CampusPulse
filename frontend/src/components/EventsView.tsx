@@ -2,12 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { 
   Sparkles, 
   Plus, 
-  Calendar, 
-  Clock, 
   MapPin, 
   X,
-  Tag,
-  DoorClosed
+  DoorClosed,
+  Clock
 } from 'lucide-react';
 import { CampusEvent, Building, Room } from '../types';
 import { api } from '../services/api';
@@ -48,10 +46,6 @@ export const EventsView: React.FC<EventsViewProps> = ({
   const [category, setCategory] = useState<string>('TECH');
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    fetchEvents();
-  }, []);
-
   const fetchEvents = async () => {
     setLoading(true);
     try {
@@ -63,6 +57,10 @@ export const EventsView: React.FC<EventsViewProps> = ({
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchEvents();
+  }, []);
 
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault();

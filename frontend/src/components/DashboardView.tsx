@@ -10,7 +10,6 @@ import {
   Sparkles,
   ArrowUpRight,
   TrendingUp,
-  ShieldCheck,
   Plus
 } from 'lucide-react';
 import { 
@@ -42,7 +41,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     );
   }
 
-  const { stats, booking_trends, building_occupancy, recent_bookings, recent_tickets, upcoming_events } = data;
+  const { stats, booking_trends, building_occupancy, recent_bookings, recent_tickets } = data;
 
   return (
     <div className="space-y-6">

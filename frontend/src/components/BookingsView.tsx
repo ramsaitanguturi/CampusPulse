@@ -3,13 +3,8 @@ import {
   CalendarClock, 
   Plus, 
   Search, 
-  X, 
-  CheckCircle2, 
-  AlertTriangle, 
-  Clock, 
-  User as UserIcon,
-  DoorClosed,
-  Trash2
+  X,
+  AlertTriangle
 } from 'lucide-react';
 import { Booking, Room, User } from '../types';
 import { api, ApiError } from '../services/api';
@@ -53,16 +48,6 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
   const [formError, setFormError] = useState<string | null>(null);
   const [conflictDetails, setConflictDetails] = useState<any | null>(null);
 
-  useEffect(() => {
-    if (preselectedRoom) {
-      setSelectedRoomId(preselectedRoom.id);
-    }
-  }, [preselectedRoom]);
-
-  useEffect(() => {
-    fetchBookings();
-  }, [statusFilter]);
-
   const fetchBookings = async () => {
     setLoading(true);
     try {
@@ -74,6 +59,16 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (preselectedRoom) {
+      setSelectedRoomId(preselectedRoom.id);
+    }
+  }, [preselectedRoom]);
+
+  useEffect(() => {
+    fetchBookings();
+  }, [statusFilter]);
 
   const handleCreateBooking = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,7 +124,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
       await api.cancelBooking(bookingId);
       fetchBookings();
       onRefreshData();
-    } catch (err) {
+    } catch (_err) {
       alert('Failed to cancel booking.');
     }
   };
