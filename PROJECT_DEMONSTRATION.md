@@ -216,17 +216,18 @@ Show the professor that our implementation is mathematically proven and regressi
 
 Open Terminal and run:
 ```powershell
-backend\venv\Scripts\pytest -v
+backend\venv\Scripts\python.exe -m pytest -v
 ```
 
 ### Show the Output:
-- **38 tests collected, 38 passed, 0 skipped, 0 failed in under 3 seconds!**
+- **45 tests collected, 45 passed, 0 skipped, 0 failed in ~5 seconds!**
 - Point out:
-  - `test_concurrent_booking_conflict`: 4 parallel threads verified with row locks.
-  - `test_foreign_key_violation_*`: Referential integrity constraints verified.
+  - `test_concurrent_booking_conflict` & `test_concurrent_two_simultaneous_api_requests_*`: Parallel threads verified with row locks.
+  - `test_foreign_key_violation_*`: Referential integrity constraints verified on both Oracle (`ORA-02291`) and SQLite (`PRAGMA foreign_keys = ON`).
   - `test_unique_constraint_*`: Unique constraints verified.
   - `test_check_constraint_*`: Domain CHECK constraints verified.
-  - `test_oracle_trigger_direct_sql_conflict_rejection`: Trigger verified against Oracle.
+  - `test_oracle_direct_sql_two_simultaneous_overlapping_inserts`: Direct SQL concurrency safety and compound trigger verified across independent Oracle sessions.
+  - `test_oracle_row_locking_select_for_update_blocks_concurrent_session`: Cross-session blocking with `SELECT ... FOR UPDATE NOWAIT` verified (`ORA-00054`).
   - `test_transaction_atomicity_and_rollback`: Complete rollback of failed transactions verified.
 
 ---

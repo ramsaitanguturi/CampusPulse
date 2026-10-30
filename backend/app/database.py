@@ -1,6 +1,9 @@
 import logging
+import sqlite3
 import sys
-from sqlalchemy import create_engine, text
+from sqlite3 import Connection as SQLite3Connection
+from sqlalchemy import create_engine, event, text
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from .config import settings, mask_database_url
 
@@ -11,6 +14,16 @@ if not logger.handlers:
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     logger.setLevel(logging.INFO)
+
+# Register SQLite foreign key enforcement before any connection/engine is created.
+# This ensures PRAGMA foreign_keys = ON is executed for all SQLite connections,
+# including connections created via pooling.
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    if isinstance(dbapi_connection, SQLite3Connection) or type(dbapi_connection).__module__ == "sqlite3":
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
 
 Base = declarative_base()
 

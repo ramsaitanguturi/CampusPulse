@@ -4,7 +4,7 @@
 [![Database](https://img.shields.io/badge/Database-Oracle%2021c%20XE%20%2F%20Free-red.svg)](https://www.oracle.com/database/)
 [![Backend](https://img.shields.io/badge/Backend-FastAPI%20%2B%20SQLAlchemy%202.0-009688.svg)](https://fastapi.tiangolo.com/)
 [![Frontend](https://img.shields.io/badge/Frontend-React%2019%20%2B%20TypeScript%20%2B%20Vite-61DAFB.svg)](https://react.dev/)
-[![Tests](https://img.shields.io/badge/Test%20Suite-38%20Passed%20%2F%200%20Failed-brightgreen.svg)](TESTING_REPORT.md)
+[![Tests](https://img.shields.io/badge/Test%20Suite-45%20Passed%20%2F%200%20Failed-brightgreen.svg)](TESTING_REPORT.md)
 [![Schema](https://img.shields.io/badge/Normalization-3NF%20%26%20BCNF%20Compliant-blue.svg)](DATABASE_DESIGN.md)
 
 **CampusPulse** is an enterprise-grade smart campus operations platform and spatial digital twin. Designed as a comprehensive database management systems (DBMS) semester project, it models university infrastructure, spatial floor plans, room allocations, conflict-free scheduling, maintenance workflows, and real-time SQL analytics using **Oracle Database 21c as the primary and authoritative database backend**.
@@ -19,7 +19,7 @@ All required academic evaluation documents have been prepared and verified:
 2. **[SQL_CONCEPTS.md](SQL_CONCEPTS.md)**: Comprehensive explanation of all 20 applied SQL syllabus concepts with executable queries and output breakdowns.
 3. **[ORACLE_DATABASE_GUIDE.md](ORACLE_DATABASE_GUIDE.md)**: Production guide for Oracle Database 21c XE, Pluggable DB (`XEPDB1`), schema compilation, user provisioning, and connection pool tuning.
 4. **[TRANSACTION_AND_CONCURRENCY.md](TRANSACTION_AND_CONCURRENCY.md)**: In-depth analysis of ACID properties, pessimistic row-level locking (`SELECT ... FOR UPDATE`), mutating-table resolution via Oracle Compound Triggers, and concurrency stress tests.
-5. **[TESTING_REPORT.md](TESTING_REPORT.md)**: Technical testing audit detailing all 38 automated test cases, environments, and 100% passing results against Oracle 21c.
+5. **[TESTING_REPORT.md](TESTING_REPORT.md)**: Technical testing audit detailing all 45 automated test cases, environments, and 100% passing results against Oracle 21c (as well as offline SQLite fallback verification).
 6. **[PROJECT_DEMONSTRATION.md](PROJECT_DEMONSTRATION.md)**: Step-by-step viva script and professor demonstration walkthrough with exact instructions and talking points.
 
 ---
@@ -305,20 +305,20 @@ npm.cmd run build
 
 ---
 
-## 🧪 Automated Test Suite (38 Tests)
+## 🧪 Automated Test Suite (45 Tests)
 
-CampusPulse includes 38 comprehensive automated tests:
+CampusPulse includes 45 comprehensive automated tests executed directly against Oracle Database 21c:
 
 ```powershell
 # Run the complete test suite against Oracle Database 21c:
-backend\venv\Scripts\pytest -v
+backend\venv\Scripts\python.exe -m pytest -v
 ```
 
 ### Test Coverage Highlights:
 - **`backend/tests/test_api.py` (16 tests)**: API endpoints, root, health, dashboard stats, filter queries, not-exists availability, event validation, maintenance state machine.
-- **`backend/tests/test_concurrency.py` (1 test)**: 4 parallel threads targeting the same room; asserts exactly 1 success (201) and 3 conflicts (409) with zero duplicate records.
-- **`backend/tests/test_database_integrity.py` (12 tests)**: Foreign keys, unique constraints, check constraints, offline room booking blocks, direct SQL compound trigger enforcement (`ORA-20001`), transaction atomicity & rollback verification.
-- **`backend/tests/test_oracle_integration.py` (5 tests)**: `USER_TABLES`, `USER_TRIGGERS`, `USER_VIEWS`, and `SELECT ... FOR UPDATE` locking on Oracle.
+- **`backend/tests/test_concurrency.py` (4 tests)**: Multi-threaded race conditions (4 threads, 2 simultaneous requests, different rooms in parallel, and adjacent back-to-back bookings) verifying that row-level locking (`SELECT ... FOR UPDATE`) guarantees serializable scheduling and HTTP 409 conflict rejection.
+- **`backend/tests/test_database_integrity.py` (12 tests)**: Foreign keys (`PRAGMA foreign_keys = ON` on SQLite and `ORA-02291` on Oracle), unique constraints, check constraints, offline room booking blocks, direct SQL compound trigger enforcement (`ORA-20001`), transaction atomicity & complete rollback verification.
+- **`backend/tests/test_oracle_integration.py` (9 tests)**: `USER_TABLES`, `USER_TRIGGERS`, `USER_VIEWS`, real multi-session row locking blocking (`SELECT ... FOR UPDATE NOWAIT` raising `ORA-00054`), direct SQL concurrent overlapping inserts, concurrent different rooms, adjacent back-to-back bookings, concurrent interval updates, and all DBMS Studio queries.
 - **`backend/tests/test_sql_demonstrations.py` (4 tests)**: Verifies that syllabus queries execute cleanly on Oracle.
 
 ---
@@ -348,7 +348,7 @@ CampusPulse/
 ├── SQL_CONCEPTS.md               <- 20 syllabus SQL query guides with sample outputs
 ├── ORACLE_DATABASE_GUIDE.md      <- Oracle 21c XE setup, PDB, user provisioning, pooling
 ├── TRANSACTION_AND_CONCURRENCY.md<- ACID proofs, row-locking, compound trigger mechanics
-├── TESTING_REPORT.md             <- QA audit of all 38 automated tests (100% pass)
+├── TESTING_REPORT.md             <- QA audit of all 45 automated tests (100% pass)
 ├── PROJECT_DEMONSTRATION.md      <- Step-by-step viva presentation script
 ├── README.md                     <- Primary project documentation
 ├── .env.example                  <- Environment configuration template

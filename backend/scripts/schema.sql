@@ -1,7 +1,9 @@
 -- =====================================================================
 -- CampusPulse — Smart Campus Digital Twin
 -- Comprehensive DBMS Semester Project Schema
--- Database Dialect: PostgreSQL / Oracle Compatible DDL
+-- Database Dialect: PostgreSQL-Specific DDL (Not Oracle-Compatible)
+-- Note: Uses PostgreSQL extensions (btree_gist) and exclusion constraints (EXCLUDE USING gist).
+-- For Oracle Database 21c authoritative schema, use oracle_schema.sql.
 -- =====================================================================
 
 -- 1. Enable btree_gist for multi-column range exclusion constraints

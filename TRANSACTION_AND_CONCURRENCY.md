@@ -119,52 +119,82 @@ room = room_query.one_or_none()
 
 ## 6. Oracle PL/SQL Compound Trigger Architecture
 
-### Overcoming the Mutating-Table Problem (`ORA-04091`)
-In standard Oracle PL/SQL, a row-level trigger (`FOR EACH ROW`) cannot query the table on which it is defined. Attempting to run `SELECT COUNT(*) FROM bookings` inside an `AFTER INSERT ON bookings FOR EACH ROW` trigger triggers:
-`ORA-04091: table CAMPUSPULSE.BOOKINGS is mutating, trigger/function may not see it`
+### Overcoming Mutating-Table Errors (`ORA-04091`) & Direct SQL Concurrency Races
+In standard Oracle PL/SQL, a row-level trigger (`FOR EACH ROW`) cannot query the table on which it is defined (`ORA-04091: table BOOKINGS is mutating`). Furthermore, standard triggers cannot independently serialize concurrent direct SQL transactions: two uncommitted transactions inserting overlapping bookings simultaneously would neither see the other's uncommitted row, leading to double bookings upon commit.
 
-### The Compound Trigger Solution
-Oracle's **COMPOUND TRIGGER** partitions trigger execution into discrete timing points:
+### The Concurrency-Safe Compound Trigger Solution
+CampusPulse employs a **COMPOUND TRIGGER** that combines row-level collection with statement-level parent room row locking (`SELECT ... FOR UPDATE` in deterministic sorted order):
 
 ```sql
 CREATE OR REPLACE TRIGGER trg_no_overlapping_bookings
 FOR INSERT OR UPDATE ON bookings
 COMPOUND TRIGGER
 
-   -- Collection to hold new rows in session memory
    TYPE t_booking_rec IS RECORD (
+      id         bookings.id%TYPE,
       room_id    bookings.room_id%TYPE,
       start_time bookings.start_time%TYPE,
       end_time   bookings.end_time%TYPE,
-      status     bookings.status%TYPE,
-      id         bookings.id%TYPE
+      status     bookings.status%TYPE
    );
    TYPE t_booking_list IS TABLE OF t_booking_rec;
    g_bookings t_booking_list := t_booking_list();
 
-   -- Phase 1: Initialize collection before statement begins
+   -- Associative array of affected room IDs for deterministic sorted locking
+   TYPE t_room_id_map IS TABLE OF BOOLEAN INDEX BY PLS_INTEGER;
+   g_room_ids t_room_id_map;
+
+   -- Phase 1: Initialize collections before statement begins
    BEFORE STATEMENT IS
    BEGIN
       g_bookings.DELETE;
+      g_room_ids.DELETE;
    END BEFORE STATEMENT;
 
-   -- Phase 2: Record newly inserted/updated rows in memory
+   -- Phase 2: Record newly inserted/updated rows and affected room IDs in memory
    AFTER EACH ROW IS
    BEGIN
       IF :NEW.status = 'CONFIRMED' THEN
          g_bookings.EXTEND;
+         g_bookings(g_bookings.LAST).id := :NEW.id;
          g_bookings(g_bookings.LAST).room_id := :NEW.room_id;
          g_bookings(g_bookings.LAST).start_time := :NEW.start_time;
          g_bookings(g_bookings.LAST).end_time := :NEW.end_time;
          g_bookings(g_bookings.LAST).status := :NEW.status;
-         g_bookings(g_bookings.LAST).id := :NEW.id;
+
+         g_room_ids(:NEW.room_id) := TRUE;
+      END IF;
+
+      IF UPDATING THEN
+         IF :OLD.room_id IS NOT NULL AND :OLD.room_id != :NEW.room_id THEN
+            g_room_ids(:OLD.room_id) := TRUE;
+         END IF;
       END IF;
    END AFTER EACH ROW;
 
-   -- Phase 3: Inspect table AFTER statement completes (table is no longer mutating!)
+   -- Phase 3: Acquire parent locks in sorted order, then validate interval overlap
    AFTER STATEMENT IS
+      v_dummy_room_id rooms.id%TYPE;
+      v_curr_room_id  PLS_INTEGER;
       v_conflict_count NUMBER := 0;
    BEGIN
+      -- Step 1: Deterministic sorted row locking on parent ROOMS table to serialize concurrent transactions
+      v_curr_room_id := g_room_ids.FIRST;
+      WHILE v_curr_room_id IS NOT NULL LOOP
+         BEGIN
+            SELECT id
+            INTO v_dummy_room_id
+            FROM rooms
+            WHERE id = v_curr_room_id
+            FOR UPDATE;
+         EXCEPTION
+            WHEN NO_DATA_FOUND THEN
+               NULL; -- Let foreign key constraint reject non-existent room
+         END;
+         v_curr_room_id := g_room_ids.NEXT(v_curr_room_id);
+      END LOOP;
+
+      -- Step 2: Validate half-open interval overlap with parent room locks acquired
       FOR i IN 1 .. g_bookings.COUNT LOOP
          SELECT COUNT(*)
          INTO v_conflict_count
@@ -172,7 +202,7 @@ COMPOUND TRIGGER
          WHERE b.room_id = g_bookings(i).room_id
            AND b.status = 'CONFIRMED'
            AND (b.id != g_bookings(i).id OR g_bookings(i).id IS NULL)
-           AND NOT (b.end_time <= g_bookings(i).start_time OR b.start_time >= g_bookings(i).end_time);
+           AND (b.start_time < g_bookings(i).end_time AND b.end_time > g_bookings(i).start_time);
 
          IF v_conflict_count > 0 THEN
             RAISE_APPLICATION_ERROR(
@@ -188,32 +218,41 @@ END trg_no_overlapping_bookings;
 /
 ```
 
+### Concurrency Guarantees of the Trigger:
+1. **Serialization of Direct SQL Transactions**: Even when direct SQL statements bypass the web API, the trigger locks the parent `ROOMS` row via `SELECT ... FOR UPDATE`, queuing concurrent transactions for the same room.
+2. **Deterministic Sorted Order**: By using an associative array indexed by `PLS_INTEGER`, room IDs are locked in ascending order (`FIRST` to `NEXT`), eliminating the classic $A \to B$ vs $B \to A$ cyclic deadlock scenario.
+3. **Half-Open Interval Semantics**: Enforces `(b.start_time < g_bookings(i).end_time AND b.end_time > g_bookings(i).start_time)`, permitting adjacent back-to-back bookings while strictly rejecting overlaps.
+4. **Mutating-Table Immunity**: In `AFTER STATEMENT`, Oracle allows full read access to `bookings` without `ORA-04091`.
+
 ---
 
 ## 7. Automated Concurrency Test Case Verification
 
-The test suite includes a multi-threaded parallel stress test in `backend/tests/test_concurrency.py`:
+The test suite includes comprehensive multi-threaded and multi-session concurrency tests across both the API layer (`test_concurrency.py`) and direct Oracle SQL transactions (`test_oracle_integration.py`):
 
-```python
-def test_concurrent_booking_conflict():
-    # 4 parallel worker threads target the EXACT same room and time slot
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-        futures = [executor.submit(attempt_booking, i) for i in range(4)]
-        responses = [f.result() for f in concurrent.futures.as_completed(futures)]
+### 1. API Concurrency Tests (`backend/tests/test_concurrency.py`)
+- `test_concurrent_booking_conflict`: 4 parallel worker threads target the exact same room and slot; asserts exactly 1 success (201) and 3 conflicts (409) with zero duplicate records.
+- `test_concurrent_two_simultaneous_api_requests_same_room_and_time`: 2 simultaneous API requests for the same room and slot; exactly 1 succeeds, 1 rejected with HTTP 409 Conflict; zero partial data persisted.
+- `test_concurrent_different_rooms_api_bookings`: 2 simultaneous requests for different rooms execute concurrently with HTTP 201.
+- `test_concurrent_adjacent_back_to_back_api_bookings`: 2 simultaneous requests for adjacent intervals `[T1, T2)` and `[T2, T3)` for the same room both succeed with HTTP 201.
 
-    status_codes = [r.status_code for r in responses]
-    success_count = status_codes.count(201)
-    conflict_count = status_codes.count(409)
+### 2. Direct Oracle SQL Concurrency Tests (`backend/tests/test_oracle_integration.py`)
+- `test_oracle_row_locking_select_for_update_blocks_concurrent_session`: Independent Session 1 holds a room lock via `SELECT FOR UPDATE`; Session 2 attempting `SELECT FOR UPDATE NOWAIT` is immediately rejected with `ORA-00054` (resource busy), proving authentic database-level row locking.
+- `test_oracle_direct_sql_two_simultaneous_overlapping_inserts`: Two separate Oracle sessions execute concurrent direct SQL inserts for the same room. Session 2 blocks on parent room lock until Session 1 commits, then raises `ORA-20001` and rolls back cleanly with zero partial data.
+- `test_oracle_direct_sql_concurrent_different_rooms`: Independent sessions concurrently insert bookings for distinct rooms; both commit without blocking.
+- `test_oracle_direct_sql_adjacent_back_to_back_bookings`: Direct SQL back-to-back bookings commit simultaneously without conflict.
+- `test_oracle_direct_sql_concurrent_updates_to_booking_intervals`: Direct SQL UPDATE modifying an existing booking to overlap another confirmed booking is rejected with `ORA-20001` and rolled back.
 
-    # Invariant: Exactly 1 succeeds, exactly 3 are rejected with HTTP 409
-    assert success_count == 1
-    assert conflict_count == 3
+### Actual Pytest Execution Output
 ```
-
-### Actual Test Execution Output on Oracle 21c
-```
-backend/tests/test_concurrency.py::test_concurrent_booking_conflict PASSED [100%]
-Outcome: Successes=1, Conflicts=3 (HTTP 409)
-Zero duplicate bookings created.
+backend/tests/test_concurrency.py::test_concurrent_booking_conflict PASSED
+backend/tests/test_concurrency.py::test_concurrent_two_simultaneous_api_requests_same_room_and_time PASSED
+backend/tests/test_concurrency.py::test_concurrent_different_rooms_api_bookings PASSED
+backend/tests/test_concurrency.py::test_concurrent_adjacent_back_to_back_api_bookings PASSED
+backend/tests/test_oracle_integration.py::test_oracle_row_locking_select_for_update_blocks_concurrent_session PASSED
+backend/tests/test_oracle_integration.py::test_oracle_direct_sql_two_simultaneous_overlapping_inserts PASSED
+backend/tests/test_oracle_integration.py::test_oracle_direct_sql_concurrent_different_rooms PASSED
+backend/tests/test_oracle_integration.py::test_oracle_direct_sql_adjacent_back_to_back_bookings PASSED
+backend/tests/test_oracle_integration.py::test_oracle_direct_sql_concurrent_updates_to_booking_intervals PASSED
 ```
 

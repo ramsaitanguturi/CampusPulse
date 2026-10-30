@@ -223,7 +223,7 @@ The schema includes 8 purpose-built B-Tree indexes:
 
 ### Error 3: `ORA-04091: table BOOKINGS is mutating, trigger/function may not see it`
 - **Cause**: Standard row triggers (`AFTER INSERT FOR EACH ROW`) cannot query the table being modified.
-- **CampusPulse Solution**: Implemented an **Oracle Compound Trigger** (`COMPOUND TRIGGER`). The trigger collects rows in `AFTER EACH ROW` and checks for conflicts in `AFTER STATEMENT`, where the table is no longer mutating.
+- **CampusPulse Solution**: Implemented an **Oracle Compound Trigger** (`COMPOUND TRIGGER`). The trigger collects affected room IDs and booking intervals in `AFTER EACH ROW`. In `AFTER STATEMENT`, it acquires pessimistic row locks (`SELECT ... FOR UPDATE`) on the parent `ROOMS` table in deterministic sorted order to serialize concurrent direct SQL transactions, then validates half-open interval overlap with zero mutating-table errors.
 
 ### Error 4: `ORA-20001: OracleSQL Conflict Error: Room ... has an overlapping booking`
 - **Cause**: This is the expected and intended business rule trigger firing when an overlapping reservation is attempted.

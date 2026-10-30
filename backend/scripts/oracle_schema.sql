@@ -179,43 +179,77 @@ CREATE TABLE events (
 
 -- ---------------------------------------------------------------------
 -- 3. ORACLE COMPOUND TRIGGER: trg_no_overlapping_bookings
--- Uses COMPOUND TRIGGER to prevent ORA-04091 mutating table errors
--- and guarantees half-open interval [start_time, end_time) scheduling.
+-- Uses COMPOUND TRIGGER with parent ROOMS row-locking (SELECT FOR UPDATE)
+-- to serialize concurrent direct SQL transactions, avoid ORA-04091 mutating-table
+-- errors, prevent deadlocks via deterministic sorted locking, and guarantee
+-- half-open interval [start_time, end_time) scheduling.
 -- ---------------------------------------------------------------------
 CREATE OR REPLACE TRIGGER trg_no_overlapping_bookings
 FOR INSERT OR UPDATE ON bookings
 COMPOUND TRIGGER
 
    TYPE t_booking_rec IS RECORD (
+      id         bookings.id%TYPE,
       room_id    bookings.room_id%TYPE,
       start_time bookings.start_time%TYPE,
       end_time   bookings.end_time%TYPE,
-      status     bookings.status%TYPE,
-      id         bookings.id%TYPE
+      status     bookings.status%TYPE
    );
    TYPE t_booking_list IS TABLE OF t_booking_rec;
    g_bookings t_booking_list := t_booking_list();
 
+   -- Associative array of affected room IDs for deterministic sorted locking
+   TYPE t_room_id_map IS TABLE OF BOOLEAN INDEX BY PLS_INTEGER;
+   g_room_ids t_room_id_map;
+
    BEFORE STATEMENT IS
    BEGIN
       g_bookings.DELETE;
+      g_room_ids.DELETE;
    END BEFORE STATEMENT;
 
    AFTER EACH ROW IS
    BEGIN
       IF :NEW.status = 'CONFIRMED' THEN
          g_bookings.EXTEND;
+         g_bookings(g_bookings.LAST).id := :NEW.id;
          g_bookings(g_bookings.LAST).room_id := :NEW.room_id;
          g_bookings(g_bookings.LAST).start_time := :NEW.start_time;
          g_bookings(g_bookings.LAST).end_time := :NEW.end_time;
          g_bookings(g_bookings.LAST).status := :NEW.status;
-         g_bookings(g_bookings.LAST).id := :NEW.id;
+
+         g_room_ids(:NEW.room_id) := TRUE;
+      END IF;
+
+      IF UPDATING THEN
+         IF :OLD.room_id IS NOT NULL AND :OLD.room_id != :NEW.room_id THEN
+            g_room_ids(:OLD.room_id) := TRUE;
+         END IF;
       END IF;
    END AFTER EACH ROW;
 
    AFTER STATEMENT IS
+      v_dummy_room_id rooms.id%TYPE;
+      v_curr_room_id  PLS_INTEGER;
       v_conflict_count NUMBER := 0;
    BEGIN
+      -- Step 1: Deterministic sorted row locking on parent ROOMS table to serialize concurrent transactions
+      v_curr_room_id := g_room_ids.FIRST;
+      WHILE v_curr_room_id IS NOT NULL LOOP
+         BEGIN
+            SELECT id
+            INTO v_dummy_room_id
+            FROM rooms
+            WHERE id = v_curr_room_id
+            FOR UPDATE;
+         EXCEPTION
+            WHEN NO_DATA_FOUND THEN
+               NULL; -- Let foreign key constraint reject non-existent room
+         END;
+         v_curr_room_id := g_room_ids.NEXT(v_curr_room_id);
+      END LOOP;
+
+      -- Step 2: Validate half-open interval overlap with parent room locks acquired
       FOR i IN 1 .. g_bookings.COUNT LOOP
          SELECT COUNT(*)
          INTO v_conflict_count
@@ -223,7 +257,7 @@ COMPOUND TRIGGER
          WHERE b.room_id = g_bookings(i).room_id
            AND b.status = 'CONFIRMED'
            AND (b.id != g_bookings(i).id OR g_bookings(i).id IS NULL)
-           AND NOT (b.end_time <= g_bookings(i).start_time OR b.start_time >= g_bookings(i).end_time);
+           AND (b.start_time < g_bookings(i).end_time AND b.end_time > g_bookings(i).start_time);
 
          IF v_conflict_count > 0 THEN
             RAISE_APPLICATION_ERROR(
