@@ -4,7 +4,8 @@
 [![Database](https://img.shields.io/badge/Database-Oracle%2021c%20XE%20%2F%20Free-red.svg)](https://www.oracle.com/database/)
 [![Backend](https://img.shields.io/badge/Backend-FastAPI%20%2B%20SQLAlchemy%202.0-009688.svg)](https://fastapi.tiangolo.com/)
 [![Frontend](https://img.shields.io/badge/Frontend-React%2019%20%2B%20TypeScript%20%2B%20Vite-61DAFB.svg)](https://react.dev/)
-[![Tests](https://img.shields.io/badge/Test%20Suite-45%20Passed%20%2F%200%20Failed-brightgreen.svg)](TESTING_REPORT.md)
+[![Oracle Tests](https://img.shields.io/badge/Oracle%2021c%20Suite-45%20Passed%20%2F%200%20Failed-brightgreen.svg)](TESTING_REPORT.md)
+[![SQLite Fallback](https://img.shields.io/badge/SQLite%20Fallback-27%20Passed%20%2F%2018%20Skipped-blue.svg)](TESTING_REPORT.md)
 [![Schema](https://img.shields.io/badge/Normalization-3NF%20%26%20BCNF%20Compliant-blue.svg)](DATABASE_DESIGN.md)
 
 **CampusPulse** is an enterprise-grade smart campus operations platform and spatial digital twin. Designed as a comprehensive database management systems (DBMS) semester project, it models university infrastructure, spatial floor plans, room allocations, conflict-free scheduling, maintenance workflows, and real-time SQL analytics using **Oracle Database 21c as the primary and authoritative database backend**.
@@ -373,9 +374,9 @@ CampusPulse/
 │   │   └── schema.sql            <- PostgreSQL secondary script
 │   └── tests/
 │       ├── test_api.py           <- REST API integration tests (16 tests)
-│       ├── test_concurrency.py   <- Multi-threaded row-locking stress test (1 test)
+│       ├── test_concurrency.py   <- Multi-threaded row-locking stress tests (4 tests)
 │       ├── test_database_integrity.py <- FK, Check, Unique, ACID rollback tests (12 tests)
-│       ├── test_oracle_integration.py <- Oracle dictionary & trigger tests (5 tests)
+│       ├── test_oracle_integration.py <- Oracle dictionary, trigger & concurrency tests (9 tests)
 │       └── test_sql_demonstrations.py <- Automated syllabus query tests (4 tests)
 └── frontend/
     ├── package.json              <- Vite, React 19, Tailwind CSS v4, Lucide
