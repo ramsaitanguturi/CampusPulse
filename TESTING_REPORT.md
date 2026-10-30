@@ -37,7 +37,7 @@ Failed:      0
 Skipped:     0
 Not Run:     0
 Total:      45
-Execution Time: ~5.26 seconds
+Execution Time: ~5.22 seconds
 Status:     100% PASSING (GREEN)
 ==============================================================================
 ```
@@ -57,7 +57,7 @@ Failed:      0
 Skipped:    18 (Oracle PL/SQL trigger, row-locking & SQL*Plus demo tests safely skipped)
 Not Run:     0
 Total:      45
-Execution Time: ~2.72 seconds
+Execution Time: ~3.07 seconds
 Status:     PASSING (GREEN)
 ==============================================================================
 ```
@@ -151,7 +151,59 @@ Validates execution of the 20 demonstration queries:
 
 ---
 
-## 4. Frontend Build & Quality Verification
+## 4. Real Oracle 21c Multi-Session Concurrency & Compound Trigger Audit
+
+Executed directly against Oracle Database 21c (`XEPDB1`) using independent Oracle sessions:
+
+```
+======================================================================
+CAMPUSPULSE ORACLE DATABASE 21c DIRECT VERIFICATION
+======================================================================
+
+[TASK 1] Oracle 21c Instance Verification:
+  - Banner:       Oracle Database 21c Express Edition Release 21.0.0.0.0 - Production Version 21.3.0.0.0
+  - Database:     XEPDB1
+  - PDB / CON:    XEPDB1
+  - Session User: CAMPUSPULSE
+  - User Tables:  BOOKINGS, BUILDINGS, EVENTS, MAINTENANCE_TICKETS, ROOMS, USERS
+
+[TASK 3] Compound Trigger Compilation and Validity:
+  - Trigger Name:     TRG_NO_OVERLAPPING_BOOKINGS
+  - Trigger Type:     COMPOUND
+  - Trigger Event:    INSERT OR UPDATE
+  - Trigger Status:   ENABLED
+  - Object Status:    VALID
+  - Compilation:      CLEAN (0 errors in USER_ERRORS)
+
+[TASKS 4 & 5] Concurrent Overlapping Bookings with Independent Sessions:
+  - Session-1 (Oracle SID 249): Attempting INSERT 'DirectSQL Test Overlap A' on Room 1...
+  - Session-1 (Oracle SID 249): INSERT succeeded. Holding locks for 1.0s...
+  - Session-2 (Oracle SID 983): Attempting INSERT 'DirectSQL Test Overlap B' on Room 1...
+  - Session-1 (Oracle SID 249): Successfully COMMITTED.
+  - Session-2 (Oracle SID 983): REJECTED & ROLLED BACK:
+       -> ORA-20001: OracleSQL Conflict Error: Room 1 has an overlapping booking during the requested time window.
+       -> ORA-06512: at "CAMPUSPULSE.TRG_NO_OVERLAPPING_BOOKINGS", line 75
+  - Total Independent Sessions: 2
+  - Total Commits:              1 (Expected: exactly 1)
+  - Total Rollbacks:            1 (Expected: exactly 1)
+  - Persisted Rows in DB:       1 (Zero partial data leaked)
+
+[TASK 6] Different-Room and Adjacent (Back-to-Back) Bookings:
+  - Different-Room Test: Session A (Room 1) = SUCCESS, Session B (Room 3) = SUCCESS
+  - Adjacent Bookings Test: Slot 1 [06:13-08:13) = SUCCESS, Slot 2 [08:13-10:13) = SUCCESS
+
+[TASK 7] Trigger Behavior for INSERT and UPDATE:
+  - INSERT 1 (Non-conflicting): COMMITTED.
+  - INSERT 2 (Overlapping): REJECTED by compound trigger with ORA-20001.
+  - INSERT 3 (Distinct slot): COMMITTED.
+  - UPDATE 3 (Moving into Booking 1 window): REJECTED by compound trigger with ORA-20001.
+  - UPDATE Rollback Verification: Booking 3 start_time remained unmodified after rollback.
+======================================================================
+```
+
+---
+
+## 5. Frontend Build & Quality Verification
 
 ```powershell
 cd frontend
@@ -177,7 +229,7 @@ dist/assets/index-Bc-exCWh.js   714.65 kB │ gzip: 201.33 kB
 
 ---
 
-## 5. Verification Commands for Viva & Grading
+## 6. Verification Commands for Viva & Grading
 
 To reproduce this testing report from a clean environment:
 

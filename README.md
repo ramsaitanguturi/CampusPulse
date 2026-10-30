@@ -240,7 +240,13 @@ GROUP BY b.id, b.code, b.name, b.floors, b.status;
 
 ### Step 1: Environment Configuration (`.env`)
 
-Verify your `.env` in the project root:
+1. If setting up a fresh environment, create the Python virtual environment and install backend dependencies:
+```powershell
+python -m venv backend/venv
+backend\venv\Scripts\pip.exe install -r backend/requirements.txt
+```
+
+2. Verify your `.env` in the project root:
 ```ini
 DATABASE_URL=oracle+oracledb://campuspulse:campuspulse123@localhost:1521/?service_name=XEPDB1
 CORS_ORIGINS=["http://localhost:5173","http://127.0.0.1:5173","http://localhost:3000","http://127.0.0.1:3000"]
@@ -295,6 +301,10 @@ backend\venv\Scripts\uvicorn.exe app.main:app --app-dir backend --reload --port 
 
 ```powershell
 cd frontend
+# Install clean dependencies from package-lock.json:
+npm.cmd ci
+
+# Start development server:
 npm.cmd run dev
 ```
 Access the control center at: **[http://localhost:5173/](http://localhost:5173/)**
