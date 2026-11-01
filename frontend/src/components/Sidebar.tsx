@@ -7,7 +7,6 @@ import {
   Wrench, 
   Sparkles, 
   Database,
-  Layers,
   ChevronRight
 } from 'lucide-react';
 
@@ -26,20 +25,25 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, stats }) => {
   const navItems = [
     { id: 'dashboard' as TabType, label: 'Dashboard', icon: LayoutDashboard, badge: null },
-    { id: 'map' as TabType, label: 'Campus Map Twin', icon: MapPin, badge: '2D SV' },
-    { id: 'rooms' as TabType, label: 'Rooms & Status', icon: DoorClosed, badge: stats?.availableRooms ? `${stats.availableRooms} FREE` : null },
-    { id: 'bookings' as TabType, label: 'Room Bookings', icon: CalendarClock, badge: null },
-    { id: 'maintenance' as TabType, label: 'Maintenance Hub', icon: Wrench, badge: stats?.openTickets ? `${stats.openTickets} ACT` : null, badgeColor: 'bg-rose-500/20 text-rose-300 border-rose-500/40' },
+    { id: 'map' as TabType, label: 'Campus Map', icon: MapPin, badge: 'Interactive' },
+    { id: 'rooms' as TabType, label: 'Rooms & Spaces', icon: DoorClosed, badge: stats?.availableRooms ? `${stats.availableRooms} free` : null },
+    { id: 'bookings' as TabType, label: 'Reservations', icon: CalendarClock, badge: null },
+    { id: 'maintenance' as TabType, label: 'Maintenance', icon: Wrench, badge: stats?.openTickets ? `${stats.openTickets} open` : null, badgeColor: 'bg-rose-950/40 text-rose-300 border-rose-800/40' },
     { id: 'events' as TabType, label: 'Campus Events', icon: Sparkles, badge: null },
-    { id: 'dbms' as TabType, label: 'DBMS Viva Studio', icon: Database, badge: 'SQL', badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' },
+    { id: 'dbms' as TabType, label: 'DBMS Studio', icon: Database, badge: 'SQL', badgeColor: 'bg-violet-950/40 text-violet-300 border-violet-800/40' },
   ];
 
+  const total = stats?.totalRooms ?? 0;
+  const avail = stats?.availableRooms ?? 0;
+  const maint = stats?.openTickets ?? 0;
+  const occup = Math.max(0, total - avail - maint);
+
   return (
-    <aside className="w-64 border-r border-slate-800 bg-[#070B14]/95 flex flex-col justify-between shrink-0 h-[calc(100vh-4rem)] sticky top-16">
+    <aside className="w-64 border-r border-[#1C1B24] bg-[#060609] flex flex-col justify-between shrink-0 h-[calc(100vh-4rem)] sticky top-16 select-none">
       {/* Navigation Links */}
-      <div className="p-4 space-y-1">
-        <div className="px-3 pb-2 text-[10px] font-mono uppercase tracking-widest text-slate-400">
-          Control Matrix
+      <div className="p-3.5 space-y-1">
+        <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+          Navigation
         </div>
 
         {navItems.map((item) => {
@@ -50,59 +54,55 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab, stats
               key={item.id}
               id={`nav-${item.id}`}
               onClick={() => onSelectTab(item.id)}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all group ${
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-colors cursor-pointer ${
                 isActive
-                  ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 shadow-lg shadow-cyan-950/50 glow-cyan'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60 border border-transparent'
+                  ? 'bg-violet-950/40 text-white font-medium border border-violet-800/60 shadow-sm'
+                  : 'text-zinc-400 hover:text-white hover:bg-[#12111A] border border-transparent'
               }`}
             >
               <div className="flex items-center space-x-3">
-                <Icon className={`w-4 h-4 transition-transform group-hover:scale-110 ${isActive ? 'text-cyan-400' : 'text-slate-400'}`} />
+                <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-violet-400' : 'text-zinc-400'}`} />
                 <span>{item.label}</span>
               </div>
 
-              <div className="flex items-center space-x-1.5">
+              <div className="flex items-center space-x-2">
                 {item.badge && (
-                  <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${
-                    item.badgeColor || 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                  <span className={`text-xs px-2 py-0.5 rounded-md border font-normal ${
+                    item.badgeColor || 'bg-[#14141C] text-zinc-300 border-[#252433]'
                   }`}>
                     {item.badge}
                   </span>
                 )}
-                {isActive && <ChevronRight className="w-3.5 h-3.5 text-cyan-400" />}
+                {isActive && <ChevronRight className="w-3.5 h-3.5 text-violet-400" />}
               </div>
             </button>
           );
         })}
       </div>
 
-      {/* Control Center Facility Indicator in Footer */}
-      <div className="p-4 border-t border-slate-800/80 bg-slate-950/40 space-y-3">
-        <div className="flex items-center justify-between text-xs font-mono text-slate-400">
-          <span className="flex items-center space-x-1.5">
-            <Layers className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Facility Status</span>
+      {/* Facility Status Card in Footer */}
+      <div className="p-4 border-t border-[#1C1B24] bg-[#060609]">
+        <div className="flex items-center justify-between text-xs text-zinc-300 mb-3">
+          <span className="font-medium">Capacity Overview</span>
+          <span className="flex items-center space-x-1.5 text-emerald-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            <span>Normal</span>
           </span>
-          <span className="text-emerald-400">OPTIMAL</span>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 text-center text-[10px] font-mono">
-          <div className="p-1.5 rounded-lg bg-emerald-950/30 border border-emerald-500/30 text-emerald-300">
-            <div className="font-bold text-xs">{stats?.availableRooms ?? '--'}</div>
-            <div className="text-[9px] text-emerald-400/70">AVAIL</div>
+        <div className="grid grid-cols-3 divide-x divide-[#1C1B24] border border-[#1C1B24] rounded-lg bg-[#0C0C12] p-2 text-center">
+          <div>
+            <div className="text-xs text-zinc-400">Available</div>
+            <div className="text-sm font-semibold text-emerald-400 tabular-nums mt-0.5">{stats?.availableRooms ?? '--'}</div>
           </div>
-          <div className="p-1.5 rounded-lg bg-amber-950/30 border border-amber-500/30 text-amber-300">
-            <div className="font-bold text-xs">{(stats?.totalRooms ?? 0) - (stats?.availableRooms ?? 0) - (stats?.openTickets ?? 0)}</div>
-            <div className="text-[9px] text-amber-400/70">OCCUP</div>
+          <div>
+            <div className="text-xs text-zinc-400">Occupied</div>
+            <div className="text-sm font-semibold text-amber-400 tabular-nums mt-0.5">{occup}</div>
           </div>
-          <div className="p-1.5 rounded-lg bg-rose-950/30 border border-rose-500/30 text-rose-300">
-            <div className="font-bold text-xs">{stats?.openTickets ?? '--'}</div>
-            <div className="text-[9px] text-rose-400/70">MAINT</div>
+          <div>
+            <div className="text-xs text-zinc-400">Issues</div>
+            <div className="text-sm font-semibold text-rose-400 tabular-nums mt-0.5">{stats?.openTickets ?? '--'}</div>
           </div>
-        </div>
-
-        <div className="text-[10px] font-mono text-slate-400 text-center tracking-tight">
-          DBMS Project &bull; CampusPulse
         </div>
       </div>
     </aside>

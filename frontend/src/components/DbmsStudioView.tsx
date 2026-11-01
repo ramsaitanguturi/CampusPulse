@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Database, 
-  Play, 
   Terminal, 
   Clock, 
   Copy,
@@ -55,25 +54,21 @@ export const DbmsStudioView: React.FC = () => {
   }, []);
 
   return (
-    <div className="space-y-6">
-      {/* Top Banner */}
-      <div className="p-5 rounded-2xl glass-panel-glow border border-cyan-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#1C1B24] pb-5">
         <div>
-          <div className="flex items-center space-x-2 text-cyan-400 text-xs font-mono tracking-widest uppercase">
-            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
-            <span>DBMS Viva Examination & SQL Query Studio</span>
-          </div>
-          <h2 className="text-2xl font-bold text-white tracking-wide mt-1">
-            Relational DBMS Query Workbench
+          <h2 className="text-xl font-bold text-white tracking-tight">
+            DBMS Query Studio & SQL Console
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Interactive console demonstrating Multi-Table Joins, Group By Aggregations, NOT EXISTS, and Schema Views in real-time.
+          <p className="text-sm text-zinc-400 mt-1">
+            Pre-compiled relational queries demonstrating joins, aggregations, NOT EXISTS, and views with live execution telemetry.
           </p>
         </div>
 
-        <div className="flex items-center space-x-2 text-xs font-mono bg-cyan-950/50 p-2.5 rounded-xl border border-cyan-500/40 text-cyan-300">
-          <Database className="w-4 h-4 text-cyan-400" />
-          <span>DIALECT: ORACLE SQL 21c / ORACLEDB</span>
+        <div className="flex items-center space-x-2 text-xs bg-[#0C0C12] px-3 py-2 rounded-lg border border-[#1E1D2A] text-zinc-300">
+          <Database className="w-4 h-4 text-violet-400" />
+          <span>Oracle SQL 21c / SQLAlchemy</span>
         </div>
       </div>
 
@@ -87,26 +82,25 @@ export const DbmsStudioView: React.FC = () => {
               id={`query-tab-${q.id}`}
               onClick={() => handleExecute(q.id)}
               disabled={executing}
-              className={`p-3.5 rounded-2xl border text-left transition-all ${
+              className={`p-3.5 rounded-xl border text-left transition-colors cursor-pointer ${
                 isSelected
-                  ? 'bg-cyan-500/15 border-cyan-400/80 shadow-lg shadow-cyan-950 glow-cyan text-white'
-                  : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                  ? 'bg-violet-950/40 text-white border-violet-800/60 shadow-sm'
+                  : 'bg-[#0C0C10] border-[#1C1B24] text-zinc-400 hover:text-white hover:border-[#2D2A3A]'
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border uppercase font-bold ${
-                  isSelected ? 'bg-cyan-400 text-slate-950 border-cyan-300' : 'bg-slate-800 text-slate-400 border-slate-700'
+                <span className={`text-xs px-2 py-0.5 rounded border uppercase font-medium ${
+                  isSelected ? 'bg-violet-600 text-white border-violet-500' : 'bg-[#14141C] text-zinc-400 border-[#252433]'
                 }`}>
                   {q.category}
                 </span>
-                {isSelected && <Play className={`w-3 h-3 text-cyan-400 fill-cyan-400 ${executing ? 'animate-spin' : ''}`} />}
               </div>
 
-              <div className="text-xs font-bold mt-2 truncate">
+              <div className="text-xs font-semibold mt-2.5 text-white truncate">
                 {q.title}
               </div>
 
-              <div className="text-[10px] text-slate-400 mt-1 line-clamp-2 font-mono">
+              <div className="text-xs text-zinc-400 mt-1 line-clamp-2">
                 {q.concept}
               </div>
             </button>
@@ -117,38 +111,38 @@ export const DbmsStudioView: React.FC = () => {
       {/* SQL Statement Display & Console */}
       {executionResult && (
         <div className="space-y-4">
-          <div className="rounded-2xl glass-panel overflow-hidden border border-slate-800">
+          <div className="surface-card rounded-xl overflow-hidden">
             {/* Console Toolbar */}
-            <div className="px-5 py-3 border-b border-slate-800 bg-slate-900/80 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+            <div className="px-5 py-3 border-b border-[#1C1B24] bg-[#0A0A0E] flex flex-wrap items-center justify-between gap-3 text-xs">
               <div className="flex items-center space-x-3">
-                <Terminal className="w-4 h-4 text-cyan-400" />
-                <span className="font-bold text-white">{executionResult.title}</span>
-                <span className="text-slate-400 text-[11px] hidden sm:inline">&bull; {executionResult.description}</span>
+                <Terminal className="w-4 h-4 text-violet-400" />
+                <span className="font-semibold text-white">{executionResult.title}</span>
+                <span className="text-zinc-400 hidden sm:inline">&bull; {executionResult.description}</span>
               </div>
 
               <div className="flex items-center space-x-3">
-                <div className="flex items-center space-x-1.5 text-emerald-400 bg-emerald-950/40 px-2.5 py-1 rounded-lg border border-emerald-500/30">
+                <div className="flex items-center space-x-1.5 text-emerald-400 bg-emerald-950/40 px-2.5 py-1 rounded-md border border-emerald-800/40">
                   <Clock className="w-3.5 h-3.5" />
-                  <span>LATENCY: {executionResult.execution_time_ms} ms</span>
+                  <span className="tabular-nums font-medium">{executionResult.execution_time_ms} ms</span>
                 </div>
 
-                <div className="text-slate-300 bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700">
-                  <span>{executionResult.row_count} ROWS</span>
+                <div className="text-zinc-300 bg-[#14141C] px-2.5 py-1 rounded-md border border-[#252433]">
+                  <span className="tabular-nums">{executionResult.row_count} rows</span>
                 </div>
 
                 <button
                   onClick={handleCopySql}
-                  className="flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors"
+                  className="flex items-center space-x-1.5 px-2.5 py-1 rounded-md bg-[#14141C] hover:bg-[#1E1E2A] text-zinc-300 border border-[#252433] transition-colors cursor-pointer"
                   title="Copy SQL Query"
                 >
                   {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copied ? 'COPIED' : 'COPY'}</span>
+                  <span>{copied ? 'Copied' : 'Copy SQL'}</span>
                 </button>
               </div>
             </div>
 
             {/* SQL Code Block */}
-            <div className="p-5 bg-[#050811] overflow-x-auto text-xs font-mono text-cyan-300 border-b border-slate-800 selection:bg-cyan-500/30">
+            <div className="p-4 bg-[#050508] overflow-x-auto text-xs font-mono text-[#DDD6FE] border-b border-[#1C1B24]">
               <pre className="leading-relaxed">
                 {executionResult.sql}
               </pre>
@@ -158,7 +152,7 @@ export const DbmsStudioView: React.FC = () => {
             <div className="overflow-x-auto max-h-[380px] overflow-y-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="border-b border-slate-800 bg-slate-900/60 font-mono text-slate-400 text-[11px] uppercase tracking-wider sticky top-0 bg-[#0B1220]">
+                  <tr className="border-b border-[#1C1B24] bg-[#0A0A0E] text-zinc-300 uppercase tracking-wider sticky top-0 font-semibold">
                     {executionResult.columns.map((col) => (
                       <th key={col} className="py-2.5 px-4">
                         {col}
@@ -166,10 +160,10 @@ export const DbmsStudioView: React.FC = () => {
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/60 font-mono text-slate-300">
+                <tbody className="divide-y divide-[#1C1B24] text-zinc-300">
                   {executionResult.data.length === 0 ? (
                     <tr>
-                      <td colSpan={executionResult.columns.length} className="text-center py-8 text-slate-400">
+                      <td colSpan={executionResult.columns.length} className="text-center py-8 text-zinc-400">
                         Query executed successfully (0 rows returned).
                       </td>
                     </tr>
@@ -177,7 +171,7 @@ export const DbmsStudioView: React.FC = () => {
                     executionResult.data.map((row, idx) => (
                       <tr 
                         key={idx} 
-                        className="hover:bg-cyan-500/5 transition-colors"
+                        className="hover:bg-[#12111A] transition-colors"
                       >
                         {executionResult.columns.map((col) => {
                           const val = row[col];
@@ -186,17 +180,17 @@ export const DbmsStudioView: React.FC = () => {
                           const isMaint = val === 'MAINTENANCE' || val === 'IN_PROGRESS';
 
                           return (
-                            <td key={col} className="py-2 px-4 whitespace-nowrap">
+                            <td key={col} className="py-2.5 px-4 whitespace-nowrap font-mono">
                               {isOccupied ? (
-                                <span className="text-rose-400 font-semibold">{String(val)}</span>
+                                <span className="text-rose-400 font-medium">{String(val)}</span>
                               ) : isAvail ? (
-                                <span className="text-emerald-400 font-semibold">{String(val)}</span>
+                                <span className="text-emerald-400 font-medium">{String(val)}</span>
                               ) : isMaint ? (
-                                <span className="text-amber-400 font-semibold">{String(val)}</span>
+                                <span className="text-amber-400 font-medium">{String(val)}</span>
                               ) : typeof val === 'number' && col.includes('rate') ? (
-                                <span className="text-cyan-300 font-bold">{val}%</span>
+                                <span className="text-violet-300 font-medium tabular-nums">{val}%</span>
                               ) : (
-                                String(val ?? 'NULL')
+                                <span className="tabular-nums">{String(val ?? 'NULL')}</span>
                               )}
                             </td>
                           );

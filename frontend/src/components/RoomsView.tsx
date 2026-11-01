@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { 
   DoorClosed, 
   Search, 
-  Zap,
-  Users
+  Users,
+  Tv,
+  Wind
 } from 'lucide-react';
 import { Room, Building } from '../types';
 import { api } from '../services/api';
@@ -22,7 +23,7 @@ export const RoomsView: React.FC<RoomsViewProps> = ({ buildings, onOpenBookingMo
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [minCapacity, setMinCapacity] = useState<number>(0);
 
-  // Time-specific availability query state (SQL NOT EXISTS demo)
+  // Time-specific availability query state
   const [checkSlotActive, setCheckSlotActive] = useState(false);
   const [slotDate, setSlotDate] = useState(() => {
     const d = new Date();
@@ -84,70 +85,65 @@ export const RoomsView: React.FC<RoomsViewProps> = ({ buildings, onOpenBookingMo
   const displayedRooms = checkSlotActive && slotResults !== null ? slotResults : rooms;
 
   return (
-    <div className="space-y-6">
-      {/* Header Banner */}
-      <div className="p-5 rounded-2xl glass-panel flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#1C1B24] pb-5">
         <div>
-          <div className="flex items-center space-x-2 text-cyan-400 text-xs font-mono tracking-widest uppercase">
-            <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
-            <span>Spatial Inventory & Capacity Management</span>
-          </div>
-          <h2 className="text-2xl font-bold text-white tracking-wide mt-1">
+          <h2 className="text-xl font-bold text-white tracking-tight">
             Campus Room Directory
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Query facility spaces, inspect hardware amenities, or evaluate real-time availability via SQL NOT EXISTS subqueries.
+          <p className="text-sm text-zinc-400 mt-1">
+            Browse rooms, check hardware amenities, or query collision-free time slot availability.
           </p>
         </div>
 
-        <div className="text-xs font-mono text-cyan-300 bg-cyan-950/40 px-3.5 py-2 rounded-xl border border-cyan-500/30 flex items-center space-x-2">
-          <DoorClosed className="w-4 h-4 text-cyan-400" />
-          <span>{displayedRooms.length} ROOMS MATCHED</span>
+        <div className="text-xs text-zinc-300 bg-[#0C0C12] px-3.5 py-2 rounded-lg border border-[#1E1D2A] flex items-center space-x-2">
+          <DoorClosed className="w-4 h-4 text-violet-400" />
+          <span className="tabular-nums font-medium">{displayedRooms.length} rooms listed</span>
         </div>
       </div>
 
-      {/* SQL NOT EXISTS Time Slot Checker Box */}
-      <div className="p-5 rounded-2xl glass-panel-glow border border-cyan-500/30 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-cyan-500/20 pb-3">
-          <div className="flex items-center space-x-2">
-            <Zap className="w-4 h-4 text-cyan-400 animate-pulse" />
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider font-mono">
-              DBMS Slot Availability Engine (SQL NOT EXISTS)
+      {/* Interval Availability Query */}
+      <div className="surface-card rounded-xl p-5 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#1C1B24] pb-3">
+          <div>
+            <h3 className="text-sm font-semibold text-white">
+              Check Specific Time Window Availability
             </h3>
+            <p className="text-xs text-zinc-400 mt-0.5">
+              Queries rooms with zero conflicting confirmed bookings during the requested interval.
+            </p>
           </div>
-          <span className="text-[11px] font-mono text-slate-400">
-            Guarantees collision-free room matching for exact timestamp windows
-          </span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
           <div>
-            <label className="block text-[11px] font-mono text-slate-400 mb-1">TARGET DATE</label>
+            <label className="block text-xs text-zinc-400 mb-1.5 font-medium">Target Date</label>
             <input
               type="date"
               value={slotDate}
               onChange={(e) => setSlotDate(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-cyan-400"
+              className="w-full bg-black border border-[#272635] rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-violet-500 transition-colors"
             />
           </div>
 
           <div>
-            <label className="block text-[11px] font-mono text-slate-400 mb-1">START TIME</label>
+            <label className="block text-xs text-zinc-400 mb-1.5 font-medium">Start Time</label>
             <input
               type="time"
               value={slotStartTime}
               onChange={(e) => setSlotStartTime(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-cyan-400"
+              className="w-full bg-black border border-[#272635] rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-violet-500 transition-colors"
             />
           </div>
 
           <div>
-            <label className="block text-[11px] font-mono text-slate-400 mb-1">END TIME</label>
+            <label className="block text-xs text-zinc-400 mb-1.5 font-medium">End Time</label>
             <input
               type="time"
               value={slotEndTime}
               onChange={(e) => setSlotEndTime(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-cyan-400"
+              className="w-full bg-black border border-[#272635] rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-violet-500 transition-colors"
             />
           </div>
 
@@ -156,9 +152,9 @@ export const RoomsView: React.FC<RoomsViewProps> = ({ buildings, onOpenBookingMo
               id="btn-check-availability"
               onClick={handleCheckSlotAvailability}
               disabled={slotLoading}
-              className="flex-1 py-2 px-3 rounded-xl text-xs font-mono font-bold bg-cyan-500 hover:bg-cyan-400 text-slate-950 transition-all glow-cyan disabled:opacity-50"
+              className="flex-1 py-2 px-3 rounded-lg text-xs font-medium bg-violet-600 hover:bg-violet-500 text-white transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
             >
-              {slotLoading ? 'EVALUATING...' : 'CHECK AVAILABILITY'}
+              {slotLoading ? 'Checking...' : 'Check Availability'}
             </button>
 
             {checkSlotActive && (
@@ -167,56 +163,56 @@ export const RoomsView: React.FC<RoomsViewProps> = ({ buildings, onOpenBookingMo
                   setCheckSlotActive(false);
                   setSlotResults(null);
                 }}
-                className="py-2 px-3 rounded-xl text-xs font-mono bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700"
+                className="py-2 px-3 rounded-lg text-xs bg-[#14141C] hover:bg-[#1E1E2A] text-zinc-300 border border-[#252433] transition-colors cursor-pointer"
                 title="Reset to all rooms"
               >
-                RESET
+                Reset
               </button>
             )}
           </div>
         </div>
 
         {checkSlotActive && (
-          <div className="text-xs font-mono text-emerald-300 bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-500/30 flex items-center justify-between">
+          <div className="text-xs text-emerald-300 bg-emerald-950/30 p-3 rounded-lg border border-emerald-800/40 flex items-center justify-between">
             <span>
-              &bull; Found {slotResults?.length || 0} conflict-free rooms for {slotDate} from {slotStartTime} to {slotEndTime} UTC.
+              Found {slotResults?.length || 0} available spaces on {slotDate} between {slotStartTime} and {slotEndTime}.
             </span>
-            <span className="text-[10px] text-emerald-400 uppercase tracking-widest font-bold">SQL NOT EXISTS EXECUTED</span>
+            <span className="text-xs text-emerald-400 font-medium">Active Filter</span>
           </div>
         )}
       </div>
 
-      {/* Filter Matrix Toolbar */}
-      <div className="p-4 rounded-2xl glass-panel space-y-3">
+      {/* Filters Toolbar */}
+      <div className="surface-card rounded-xl p-4 space-y-3">
         <form onSubmit={handleSearchSubmit} className="flex gap-2">
           <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+            <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-2.5" />
             <input
               type="text"
-              placeholder="Search room by number (e.g., '101'), building name, or facility type..."
+              placeholder="Search by room number (e.g. 101), building name, or room type..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-slate-900/80 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 font-mono"
+              className="w-full pl-9 pr-4 py-2 bg-black border border-[#272635] rounded-lg text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-violet-500 transition-colors"
             />
           </div>
           <button
             type="submit"
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-mono font-semibold rounded-xl border border-slate-700 transition-colors"
+            className="px-4 py-2 bg-[#14141C] hover:bg-[#1E1E2A] text-zinc-200 text-xs font-medium rounded-lg border border-[#252433] transition-colors cursor-pointer"
           >
-            SEARCH
+            Search
           </button>
         </form>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs font-mono">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
           {/* Building Filter */}
           <div>
-            <label className="block text-[10px] text-slate-400 mb-1">BUILDING</label>
+            <label className="block text-xs text-zinc-400 mb-1">Building</label>
             <select
               value={selectedBuilding}
               onChange={(e) => setSelectedBuilding(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-400"
+              className="w-full bg-black border border-[#272635] rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-violet-500 cursor-pointer"
             >
-              <option value="ALL">All Campus Buildings</option>
+              <option value="ALL">All Buildings</option>
               {buildings.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.code} - {b.name}
@@ -227,28 +223,28 @@ export const RoomsView: React.FC<RoomsViewProps> = ({ buildings, onOpenBookingMo
 
           {/* Room Type */}
           <div>
-            <label className="block text-[10px] text-slate-400 mb-1">ROOM TYPE</label>
+            <label className="block text-xs text-zinc-400 mb-1">Room Type</label>
             <select
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-400"
+              className="w-full bg-black border border-[#272635] rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-violet-500 cursor-pointer"
             >
-              <option value="ALL">All Room Types</option>
+              <option value="ALL">All Types</option>
               <option value="CLASSROOM">Classroom</option>
               <option value="LAB">Lab / Mechatronics</option>
               <option value="AUDITORIUM">Auditorium</option>
               <option value="CONFERENCE">Conference Room</option>
-              <option value="STUDY_POD">Digital Study Pod</option>
+              <option value="STUDY_POD">Study Pod</option>
             </select>
           </div>
 
           {/* Status Filter */}
           <div>
-            <label className="block text-[10px] text-slate-400 mb-1">STATUS</label>
+            <label className="block text-xs text-zinc-400 mb-1">Status</label>
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-400"
+              className="w-full bg-black border border-[#272635] rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-violet-500 cursor-pointer"
             >
               <option value="ALL">All Statuses</option>
               <option value="AVAILABLE">Available</option>
@@ -259,9 +255,9 @@ export const RoomsView: React.FC<RoomsViewProps> = ({ buildings, onOpenBookingMo
 
           {/* Min Capacity Slider */}
           <div>
-            <div className="flex justify-between text-[10px] text-slate-400 mb-1">
-              <span>MIN CAPACITY</span>
-              <span className="text-cyan-300 font-bold">{minCapacity} SEATS</span>
+            <div className="flex justify-between text-xs text-zinc-400 mb-1">
+              <span>Min Capacity</span>
+              <span className="text-zinc-200 font-medium">{minCapacity} seats</span>
             </div>
             <input
               type="range"
@@ -270,7 +266,7 @@ export const RoomsView: React.FC<RoomsViewProps> = ({ buildings, onOpenBookingMo
               step="10"
               value={minCapacity}
               onChange={(e) => setMinCapacity(Number(e.target.value))}
-              className="w-full accent-cyan-400 cursor-pointer"
+              className="w-full accent-violet-500 cursor-pointer"
             />
           </div>
         </div>
@@ -278,94 +274,93 @@ export const RoomsView: React.FC<RoomsViewProps> = ({ buildings, onOpenBookingMo
 
       {/* Rooms Grid */}
       {loading ? (
-        <div className="text-center py-16 text-cyan-400 font-mono text-sm animate-pulse">
-          Querying room records and relational constraints...
+        <div className="text-center py-16 text-zinc-400 text-sm">
+          Loading rooms...
         </div>
       ) : displayedRooms.length === 0 ? (
-        <div className="text-center py-16 glass-panel rounded-2xl space-y-2">
-          <DoorClosed className="w-8 h-8 text-slate-500 mx-auto" />
-          <h4 className="text-base font-semibold text-slate-200">No matching rooms found</h4>
-          <p className="text-xs text-slate-400">Try adjusting your filters or search keywords.</p>
+        <div className="text-center py-16 surface-card rounded-xl space-y-2">
+          <DoorClosed className="w-8 h-8 text-zinc-500 mx-auto" />
+          <h4 className="text-base font-semibold text-zinc-200">No matching rooms found</h4>
+          <p className="text-xs text-zinc-400">Try adjusting your filters or search keywords.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {displayedRooms.map((room) => {
             const statusStyle = {
               AVAILABLE: {
-                border: 'border-emerald-500/30 hover:border-emerald-400',
-                badge: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
-                dot: 'bg-emerald-400 glow-emerald',
+                badge: 'bg-emerald-950/40 text-emerald-300 border-emerald-800/40',
+                dot: 'bg-emerald-500',
               },
               OCCUPIED: {
-                border: 'border-amber-500/30 hover:border-amber-400',
-                badge: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
-                dot: 'bg-amber-400 glow-amber',
+                badge: 'bg-amber-950/40 text-amber-300 border-amber-800/40',
+                dot: 'bg-amber-500',
               },
               MAINTENANCE: {
-                border: 'border-rose-500/30 hover:border-rose-400',
-                badge: 'bg-rose-500/20 text-rose-300 border-rose-500/40',
-                dot: 'bg-rose-400 glow-rose',
+                badge: 'bg-rose-950/40 text-rose-300 border-rose-800/40',
+                dot: 'bg-rose-500',
               },
             }[room.status];
 
             return (
               <div
                 key={room.id}
-                className={`p-4 rounded-2xl glass-panel ${statusStyle.border} transition-all duration-200 flex flex-col justify-between space-y-4`}
+                className="surface-card p-4 rounded-xl hover:border-violet-500/40 transition-colors flex flex-col justify-between space-y-4"
               >
                 <div>
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-900 border border-slate-700 text-cyan-300 font-bold">
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded bg-violet-950/60 border border-violet-800/50 text-violet-300">
                       {room.building_code || 'COMPLEX'}
                     </span>
-                    <span className={`text-[10px] font-mono px-2 py-0.5 rounded border flex items-center space-x-1.5 ${statusStyle.badge}`}>
+                    <span className={`text-xs px-2 py-0.5 rounded border flex items-center space-x-1.5 font-medium ${statusStyle.badge}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${statusStyle.dot}`}></span>
                       <span>{room.status}</span>
                     </span>
                   </div>
 
                   <div className="mt-3">
-                    <h3 className="text-lg font-bold text-white font-mono">
+                    <h3 className="text-base font-bold text-white">
                       Room {room.room_number}
                     </h3>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-zinc-400 mt-0.5">
                       {room.building_name} &bull; Floor {room.floor}
                     </p>
                   </div>
 
-                  {/* Metadata Specs */}
-                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs font-mono">
-                    <div className="p-2 rounded-lg bg-slate-900/60 border border-slate-800 flex items-center space-x-1.5 text-slate-300">
-                      <Users className="w-3.5 h-3.5 text-cyan-400" />
-                      <span>{room.capacity} Seats</span>
+                  {/* Specs */}
+                  <div className="mt-3 flex items-center gap-2 text-xs">
+                    <div className="px-2.5 py-1 rounded-md bg-black border border-[#22212E] flex items-center space-x-1.5 text-zinc-300">
+                      <Users className="w-3.5 h-3.5 text-violet-400" />
+                      <span>{room.capacity} seats</span>
                     </div>
-                    <div className="p-2 rounded-lg bg-slate-900/60 border border-slate-800 text-slate-300 text-center">
+                    <div className="px-2.5 py-1 rounded-md bg-black border border-[#22212E] text-zinc-300">
                       <span>{room.room_type}</span>
                     </div>
                   </div>
 
                   {/* Amenities */}
-                  <div className="mt-2 flex items-center gap-1.5 text-[10px] font-mono text-slate-400">
+                  <div className="mt-2.5 flex items-center gap-1.5 text-xs text-zinc-400">
                     {room.has_projector && (
-                      <span className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-cyan-400">
-                        Projector
+                      <span className="px-2 py-0.5 rounded bg-[#14141C] border border-[#252433] text-zinc-300 flex items-center space-x-1">
+                        <Tv className="w-3 h-3 text-violet-400" />
+                        <span>Projector</span>
                       </span>
                     )}
                     {room.has_ac && (
-                      <span className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300">
-                        HVAC AC
+                      <span className="px-2 py-0.5 rounded bg-[#14141C] border border-[#252433] text-zinc-300 flex items-center space-x-1">
+                        <Wind className="w-3 h-3 text-violet-400" />
+                        <span>AC</span>
                       </span>
                     )}
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-slate-800">
+                <div className="pt-3 border-t border-[#1C1B24]">
                   <button
                     disabled={room.status === 'MAINTENANCE'}
                     onClick={() => onOpenBookingModal(room)}
-                    className="w-full py-2 rounded-xl text-xs font-mono font-bold bg-cyan-500/10 hover:bg-cyan-500 text-cyan-300 hover:text-slate-950 border border-cyan-500/30 hover:border-cyan-400 transition-all disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-cyan-300"
+                    className="w-full py-2 rounded-lg text-xs font-medium bg-[#14141C] hover:bg-violet-600 hover:text-white text-zinc-200 border border-[#252433] transition-colors disabled:opacity-40 disabled:hover:bg-[#14141C] disabled:hover:text-zinc-200 cursor-pointer"
                   >
-                    {room.status === 'MAINTENANCE' ? 'OFFLINE FOR SERVICE' : 'RESERVE SPACE'}
+                    {room.status === 'MAINTENANCE' ? 'Offline for Maintenance' : 'Reserve Space'}
                   </button>
                 </div>
               </div>

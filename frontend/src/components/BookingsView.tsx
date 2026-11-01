@@ -141,44 +141,40 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
   });
 
   return (
-    <div className="space-y-6">
-      {/* Top Banner */}
-      <div className="p-5 rounded-2xl glass-panel flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#1C1B24] pb-5">
         <div>
-          <div className="flex items-center space-x-2 text-cyan-400 text-xs font-mono tracking-widest uppercase">
-            <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
-            <span>Conflict-Free Room Scheduling Engine</span>
-          </div>
-          <h2 className="text-2xl font-bold text-white tracking-wide mt-1">
-            Campus Room Reservations
+          <h2 className="text-xl font-bold text-white tracking-tight">
+            Room Reservations & Schedule
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Powered by PostgreSQL engine exclusion constraints (`EXCLUDE USING gist`) to eliminate double bookings.
+          <p className="text-sm text-zinc-400 mt-1">
+            Conflict-free room reservation engine with transactional overlap verification.
           </p>
         </div>
 
         <button
           id="btn-open-booking-modal"
           onClick={onOpenModal}
-          className="flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-mono font-bold bg-cyan-500 hover:bg-cyan-400 text-slate-950 transition-all glow-cyan"
+          className="flex items-center space-x-2 px-3.5 py-2 rounded-lg text-sm font-medium bg-violet-600 hover:bg-violet-500 text-white transition-colors shadow-sm cursor-pointer"
         >
           <Plus className="w-4 h-4" />
-          <span>NEW RESERVATION</span>
+          <span>New Reservation</span>
         </button>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="p-4 rounded-2xl glass-panel flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="surface-card p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         {/* Status Filter Tabs */}
         <div className="flex items-center gap-1.5 flex-wrap">
           {['ALL', 'CONFIRMED', 'COMPLETED', 'CANCELLED'].map((st) => (
             <button
               key={st}
               onClick={() => setStatusFilter(st)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-mono font-medium transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
                 statusFilter === st
-                  ? 'bg-cyan-500 text-slate-950 font-bold'
-                  : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+                  ? 'bg-violet-600 text-white font-semibold'
+                  : 'bg-[#12111A] text-zinc-300 hover:text-white border border-[#22212E]'
               }`}
             >
               {st}
@@ -188,93 +184,93 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
 
         {/* Search */}
         <div className="relative w-full sm:w-72">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+          <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-2.5" />
           <input
             type="text"
-            placeholder="Search bookings by session, room, user..."
+            placeholder="Search by session, room, user..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-1.5 bg-slate-900/80 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 font-mono"
+            className="w-full pl-9 pr-4 py-1.5 bg-black border border-[#272635] rounded-lg text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-violet-500 transition-colors"
           />
         </div>
       </div>
 
-      {/* Bookings Table / List */}
-      <div className="rounded-2xl glass-panel overflow-hidden border border-slate-800">
+      {/* Bookings Table */}
+      <div className="surface-card rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="border-b border-slate-800 bg-slate-900/60 font-mono text-slate-400 text-[11px] uppercase tracking-wider">
-                <th className="py-3 px-4">Reservation Title</th>
-                <th className="py-3 px-4">Location & Room</th>
-                <th className="py-3 px-4">Booked By</th>
-                <th className="py-3 px-4">Time Interval</th>
-                <th className="py-3 px-4">Status</th>
-                <th className="py-3 px-4 text-right">Actions</th>
+              <tr className="border-b border-[#1C1B24] bg-[#0A0A0E] text-zinc-300 text-xs font-semibold uppercase tracking-wider">
+                <th className="py-3.5 px-4">Reservation Title</th>
+                <th className="py-3.5 px-4">Location & Room</th>
+                <th className="py-3.5 px-4">Booked By</th>
+                <th className="py-3.5 px-4">Time Interval</th>
+                <th className="py-3.5 px-4">Status</th>
+                <th className="py-3.5 px-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 font-mono">
+            <tbody className="divide-y divide-[#1C1B24]">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-slate-400 animate-pulse">
-                    Loading reservation logs from database...
+                  <td colSpan={6} className="text-center py-12 text-zinc-400">
+                    Loading reservations...
                   </td>
                 </tr>
               ) : filteredBookings.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-slate-400">
+                  <td colSpan={6} className="text-center py-12 text-zinc-400">
                     No reservations matching current filter.
                   </td>
                 </tr>
               ) : (
                 filteredBookings.map((b) => (
-                  <tr key={b.id} className="hover:bg-slate-900/40 transition-colors">
-                    <td className="py-3 px-4 font-sans font-semibold text-white">
+                  <tr key={b.id} className="hover:bg-[#12111A] transition-colors">
+                    <td className="py-3.5 px-4 font-semibold text-white">
                       {b.title}
                     </td>
 
-                    <td className="py-3 px-4">
-                      <div className="text-slate-200">
+                    <td className="py-3.5 px-4">
+                      <div className="text-zinc-200 font-medium">
                         Room {b.room_number}
                       </div>
-                      <div className="text-[10px] text-slate-400 font-sans">
+                      <div className="text-xs text-zinc-400 mt-0.5">
                         {b.building_name} ({b.building_code})
                       </div>
                     </td>
 
-                    <td className="py-3 px-4">
-                      <div className="text-slate-200">{b.user_name}</div>
-                      <div className="text-[10px] text-slate-400">{b.user_email}</div>
+                    <td className="py-3.5 px-4">
+                      <div className="text-zinc-200 font-medium">{b.user_name}</div>
+                      <div className="text-xs text-zinc-400 mt-0.5">{b.user_email}</div>
                     </td>
 
-                    <td className="py-3 px-4">
-                      <div className="text-slate-200">
+                    <td className="py-3.5 px-4 tabular-nums">
+                      <div className="text-zinc-200 font-medium">
                         {new Date(b.start_time).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
                       </div>
-                      <div className="text-[10px] text-cyan-300">
+                      <div className="text-xs text-zinc-400 mt-0.5">
                         {new Date(b.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} &rarr;{' '}
                         {new Date(b.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </td>
 
-                    <td className="py-3 px-4">
-                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded border inline-flex items-center space-x-1 ${
-                        b.status === 'CONFIRMED' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' :
-                        b.status === 'COMPLETED' ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' :
-                        'bg-slate-800 text-slate-400 border-slate-700'
+                    <td className="py-3.5 px-4">
+                      <span className={`text-xs px-2 py-0.5 rounded border inline-flex items-center font-medium ${
+                        b.status === 'CONFIRMED' ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/40' :
+                        b.status === 'COMPLETED' ? 'bg-[#161522] text-zinc-300 border-[#252433]' :
+                        'bg-[#161522] text-zinc-400 border-[#252433]'
                       }`}>
                         <span>{b.status}</span>
                       </span>
                     </td>
 
-                    <td className="py-3 px-4 text-right">
+                    <td className="py-3.5 px-4 text-right">
                       {b.status === 'CONFIRMED' && (
                         <button
                           onClick={() => handleCancelBooking(b.id)}
-                          className="px-2.5 py-1 text-[11px] font-mono text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 border border-rose-500/30 rounded-lg transition-colors"
+                          className="px-2.5 py-1 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 border border-rose-800/40 rounded-md transition-colors cursor-pointer"
                           title="Cancel booking"
                         >
-                          CANCEL
+                          Cancel
                         </button>
                       )}
                     </td>
@@ -286,41 +282,41 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
         </div>
       </div>
 
-      {/* Create Booking Modal with Conflict Prevention */}
+      {/* Create Booking Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
-          <div className="w-full max-w-xl rounded-2xl glass-panel-glow p-6 border border-cyan-500/40 relative space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs">
+          <div className="w-full max-w-xl rounded-xl surface-elevated p-6 border border-[#2D273F] relative space-y-4 max-h-[90vh] overflow-y-auto">
             <button
               onClick={onCloseModal}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
+              className="absolute top-4 right-4 text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
 
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-xl bg-cyan-950 border border-cyan-500/40 flex items-center justify-center glow-cyan">
-                <CalendarClock className="w-5 h-5 text-cyan-400" />
+              <div className="w-10 h-10 rounded-lg bg-violet-950/60 border border-violet-800/60 flex items-center justify-center text-violet-400">
+                <CalendarClock className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-white">
+                <h3 className="text-base font-semibold text-white">
                   Schedule Room Reservation
                 </h3>
-                <p className="text-xs text-slate-400">
-                  SQL Exclusion Engine actively verifies time conflicts before transaction commit.
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  Transactional verification ensures collision-free reservations.
                 </p>
               </div>
             </div>
 
             {/* Error / Conflict Alert Box */}
             {formError && (
-              <div className="p-3.5 rounded-xl bg-rose-950/50 border border-rose-500/50 text-rose-300 text-xs space-y-2 animate-shake">
-                <div className="flex items-start space-x-2 font-bold font-mono">
+              <div className="p-3.5 rounded-lg bg-rose-950/40 border border-rose-800/50 text-rose-300 text-xs space-y-2">
+                <div className="flex items-start space-x-2 font-medium">
                   <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
                   <span>{formError}</span>
                 </div>
 
                 {conflictDetails && (
-                  <div className="p-2.5 rounded-lg bg-rose-950/80 border border-rose-500/30 font-mono text-[11px] text-rose-200 space-y-1">
+                  <div className="p-2.5 rounded bg-rose-950/60 border border-rose-800/30 text-xs text-rose-200 space-y-1">
                     <div><strong>Conflicting Session:</strong> {conflictDetails.title}</div>
                     <div><strong>Reserved By:</strong> {conflictDetails.user_name}</div>
                     <div>
@@ -331,31 +327,31 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
               </div>
             )}
 
-            <form onSubmit={handleCreateBooking} className="space-y-4 text-xs font-mono">
+            <form onSubmit={handleCreateBooking} className="space-y-4 text-xs">
               {/* Title */}
               <div>
-                <label className="block text-slate-300 mb-1">SESSION / EVENT TITLE *</label>
+                <label className="block text-zinc-300 mb-1 font-medium">Session Title *</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g., Deep Learning Workshop or Robotics Lab Session"
+                  placeholder="e.g. Distributed Systems Lab or Capstone Team Sync"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-cyan-400 font-sans"
+                  className="w-full bg-black border border-[#272635] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500 transition-colors"
                 />
               </div>
 
               {/* Room Selection */}
               <div>
-                <label className="block text-slate-300 mb-1">SELECT ROOM *</label>
+                <label className="block text-zinc-300 mb-1 font-medium">Select Room *</label>
                 <select
                   value={selectedRoomId}
                   onChange={(e) => setSelectedRoomId(Number(e.target.value))}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-cyan-400"
+                  className="w-full bg-black border border-[#272635] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500 cursor-pointer"
                 >
                   {rooms.filter(r => r.status !== 'MAINTENANCE').map((r) => (
                     <option key={r.id} value={r.id}>
-                      [{r.building_code || 'CMP'}] Room {r.room_number} &bull; {r.room_type} (Cap: {r.capacity})
+                      [{r.building_code || 'CMP'}] Room {r.room_number} &bull; {r.room_type} ({r.capacity} seats)
                     </option>
                   ))}
                 </select>
@@ -363,11 +359,11 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
 
               {/* User Selector */}
               <div>
-                <label className="block text-slate-300 mb-1">RESERVING USER / MEMBER *</label>
+                <label className="block text-zinc-300 mb-1 font-medium">Reserving User *</label>
                 <select
                   value={selectedUserId}
                   onChange={(e) => setSelectedUserId(Number(e.target.value))}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-cyan-400"
+                  className="w-full bg-black border border-[#272635] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500 cursor-pointer"
                 >
                   {users.map((u) => (
                     <option key={u.id} value={u.id}>
@@ -380,55 +376,55 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
               {/* Date & Time Range */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-slate-300 mb-1">DATE *</label>
+                  <label className="block text-zinc-300 mb-1 font-medium">Date *</label>
                   <input
                     type="date"
                     required
                     value={bookingDate}
                     onChange={(e) => setBookingDate(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-cyan-400"
+                    className="w-full bg-black border border-[#272635] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 mb-1">START TIME (UTC) *</label>
+                  <label className="block text-zinc-300 mb-1 font-medium">Start Time *</label>
                   <input
                     type="time"
                     required
                     value={startTime}
                     onChange={(e) => setStartTime(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-cyan-400"
+                    className="w-full bg-black border border-[#272635] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 mb-1">END TIME (UTC) *</label>
+                  <label className="block text-zinc-300 mb-1 font-medium">End Time *</label>
                   <input
                     type="time"
                     required
                     value={endTime}
                     onChange={(e) => setEndTime(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-cyan-400"
+                    className="w-full bg-black border border-[#272635] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500"
                   />
                 </div>
               </div>
 
               {/* Action buttons */}
-              <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-800">
+              <div className="flex items-center justify-end space-x-3 pt-3 border-t border-[#1C1B24]">
                 <button
                   type="button"
                   onClick={onCloseModal}
-                  className="px-4 py-2 rounded-xl text-xs font-mono text-slate-400 hover:text-white transition-colors"
+                  className="px-4 py-2 rounded-lg text-xs text-zinc-400 hover:text-white transition-colors cursor-pointer"
                 >
-                  CANCEL
+                  Cancel
                 </button>
                 <button
                   id="btn-submit-booking"
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2 rounded-xl text-xs font-mono font-bold bg-cyan-500 hover:bg-cyan-400 text-slate-950 transition-all glow-cyan disabled:opacity-50"
+                  className="px-4 py-2 rounded-lg text-xs font-medium bg-violet-600 hover:bg-violet-500 text-white transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
                 >
-                  {submitting ? 'COMMITTING TX...' : 'CONFIRM RESERVATION'}
+                  {submitting ? 'Confirming...' : 'Confirm Reservation'}
                 </button>
               </div>
             </form>

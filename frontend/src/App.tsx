@@ -59,7 +59,7 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#070B14] text-slate-100 flex flex-col font-sans selection:bg-cyan-500/30 selection:text-cyan-200">
+    <div className="min-h-screen bg-black text-zinc-100 flex flex-col font-sans selection:bg-violet-600/30 selection:text-violet-200">
       {/* Top Navbar */}
       <Navbar onRefresh={loadAllData} loading={loading} />
 
@@ -81,7 +81,7 @@ export function App() {
         />
 
         {/* Dynamic Main Workspace */}
-        <main className="flex-1 overflow-y-auto p-6 cyber-grid">
+        <main className="flex-1 overflow-y-auto p-6 bg-black">
           {error && (
             <div className="mb-6 p-4 rounded-2xl bg-rose-950/60 border border-rose-500/50 text-rose-300 flex items-center justify-between text-xs font-mono">
               <div className="flex items-center space-x-2">
