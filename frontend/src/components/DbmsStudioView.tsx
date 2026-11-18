@@ -1,11 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Database, 
-  Terminal, 
-  Clock, 
-  Copy,
-  Check
-} from 'lucide-react';
 import { QueryCatalogueItem, QueryExecutionResult } from '../types';
 import { api } from '../services/api';
 
@@ -54,21 +47,21 @@ export const DbmsStudioView: React.FC = () => {
   }, []);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-4 font-mono">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#1C1B24] pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-neutral-800">
         <div>
-          <h2 className="text-xl font-bold text-white tracking-tight">
-            DBMS Query Studio & SQL Console
-          </h2>
-          <p className="text-sm text-zinc-400 mt-1">
-            Pre-compiled relational queries demonstrating joins, aggregations, NOT EXISTS, and views with live execution telemetry.
+          <h1 className="text-base font-bold text-white uppercase tracking-wider">
+            DBMS Query Studio &amp; SQL Console
+          </h1>
+          <p className="text-xs text-neutral-500">
+            Relational queries demonstrating joins, aggregations, NOT EXISTS, and views with live execution telemetry
           </p>
         </div>
 
-        <div className="flex items-center space-x-2 text-xs bg-[#0C0C12] px-3 py-2 rounded-lg border border-[#1E1D2A] text-zinc-300">
-          <Database className="w-4 h-4 text-violet-400" />
-          <span>Oracle SQL 21c / SQLAlchemy</span>
+        <div className="border border-neutral-700 px-3 py-1 text-xs text-white">
+          <span>ENGINE: </span>
+          <span className="font-bold">ORACLE 21C / ACID COMPLIANT</span>
         </div>
       </div>
 
@@ -82,25 +75,25 @@ export const DbmsStudioView: React.FC = () => {
               id={`query-tab-${q.id}`}
               onClick={() => handleExecute(q.id)}
               disabled={executing}
-              className={`p-3.5 rounded-xl border text-left transition-colors cursor-pointer ${
+              className={`p-3 bg-black border text-left transition-colors cursor-pointer font-mono ${
                 isSelected
-                  ? 'bg-violet-950/40 text-white border-violet-800/60 shadow-sm'
-                  : 'bg-[#0C0C10] border-[#1C1B24] text-zinc-400 hover:text-white hover:border-[#2D2A3A]'
+                  ? 'border-white bg-neutral-950 font-bold text-white'
+                  : 'border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-600'
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className={`text-xs px-2 py-0.5 rounded border uppercase font-medium ${
-                  isSelected ? 'bg-violet-600 text-white border-violet-500' : 'bg-[#14141C] text-zinc-400 border-[#252433]'
+                <span className={`text-[10px] px-1.5 py-0.5 border font-bold ${
+                  isSelected ? 'border-white bg-white text-black' : 'border-neutral-800 text-neutral-500'
                 }`}>
-                  {q.category}
+                  [{q.category}]
                 </span>
               </div>
 
-              <div className="text-xs font-semibold mt-2.5 text-white truncate">
+              <div className="text-xs font-bold mt-2 text-white truncate uppercase tracking-tight">
                 {q.title}
               </div>
 
-              <div className="text-xs text-zinc-400 mt-1 line-clamp-2">
+              <div className="text-[10px] text-neutral-500 mt-1 line-clamp-2">
                 {q.concept}
               </div>
             </button>
@@ -110,39 +103,46 @@ export const DbmsStudioView: React.FC = () => {
 
       {/* SQL Statement Display & Console */}
       {executionResult && (
-        <div className="space-y-4">
-          <div className="surface-card rounded-xl overflow-hidden">
+        <div className="space-y-4 font-mono">
+          <div className="bg-black border border-neutral-800 overflow-hidden">
             {/* Console Toolbar */}
-            <div className="px-5 py-3 border-b border-[#1C1B24] bg-[#0A0A0E] flex flex-wrap items-center justify-between gap-3 text-xs">
-              <div className="flex items-center space-x-3">
-                <Terminal className="w-4 h-4 text-violet-400" />
-                <span className="font-semibold text-white">{executionResult.title}</span>
-                <span className="text-zinc-400 hidden sm:inline">&bull; {executionResult.description}</span>
+            <div className="px-4 py-3 border-b border-neutral-800 bg-neutral-950 flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div className="flex items-center space-x-2">
+                <span className="font-bold text-white uppercase">{executionResult.title}</span>
+                <span className="text-neutral-500 text-[11px] hidden sm:inline">&bull; {executionResult.description}</span>
               </div>
 
-              <div className="flex items-center space-x-3">
-                <div className="flex items-center space-x-1.5 text-emerald-400 bg-emerald-950/40 px-2.5 py-1 rounded-md border border-emerald-800/40">
-                  <Clock className="w-3.5 h-3.5" />
-                  <span className="tabular-nums font-medium">{executionResult.execution_time_ms} ms</span>
+              <div className="flex items-center space-x-2 text-[11px]">
+                <div className="border border-neutral-700 px-2 py-0.5 text-white">
+                  <span>EXEC: </span>
+                  <span className="font-bold tabular-nums">{executionResult.execution_time_ms} ms</span>
                 </div>
 
-                <div className="text-zinc-300 bg-[#14141C] px-2.5 py-1 rounded-md border border-[#252433]">
-                  <span className="tabular-nums">{executionResult.row_count} rows</span>
+                <div className="border border-neutral-800 px-2 py-0.5 text-neutral-400">
+                  <span className="tabular-nums">{executionResult.row_count} ROWS</span>
                 </div>
 
                 <button
                   onClick={handleCopySql}
-                  className="flex items-center space-x-1.5 px-2.5 py-1 rounded-md bg-[#14141C] hover:bg-[#1E1E2A] text-zinc-300 border border-[#252433] transition-colors cursor-pointer"
+                  className="px-2.5 py-0.5 bg-black hover:bg-neutral-900 text-neutral-300 hover:text-white border border-neutral-700 transition cursor-pointer font-bold"
                   title="Copy SQL Query"
                 >
-                  {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copied ? 'Copied' : 'Copy SQL'}</span>
+                  {copied ? '[COPIED]' : '[COPY SQL]'}
+                </button>
+
+                <button
+                  onClick={() => handleExecute(selectedQueryId)}
+                  disabled={executing}
+                  className="px-2.5 py-0.5 bg-white text-black hover:bg-neutral-200 transition cursor-pointer font-bold"
+                  title="Re-run query"
+                >
+                  {executing ? '[RUNNING...]' : '[EXECUTE]'}
                 </button>
               </div>
             </div>
 
             {/* SQL Code Block */}
-            <div className="p-4 bg-[#050508] overflow-x-auto text-xs font-mono text-[#DDD6FE] border-b border-[#1C1B24]">
+            <div className="p-4 bg-neutral-950 overflow-x-auto text-xs font-mono text-neutral-200 border-b border-neutral-800">
               <pre className="leading-relaxed">
                 {executionResult.sql}
               </pre>
@@ -150,20 +150,20 @@ export const DbmsStudioView: React.FC = () => {
 
             {/* Live Data Results Table */}
             <div className="overflow-x-auto max-h-[380px] overflow-y-auto">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="border-b border-[#1C1B24] bg-[#0A0A0E] text-zinc-300 uppercase tracking-wider sticky top-0 font-semibold">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-neutral-950 text-neutral-500 text-[11px] border-b border-neutral-800 uppercase sticky top-0">
+                  <tr>
                     {executionResult.columns.map((col) => (
-                      <th key={col} className="py-2.5 px-4">
+                      <th key={col} className="py-2.5 px-3">
                         {col}
                       </th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#1C1B24] text-zinc-300">
+                <tbody className="divide-y divide-neutral-900 text-neutral-300">
                   {executionResult.data.length === 0 ? (
                     <tr>
-                      <td colSpan={executionResult.columns.length} className="text-center py-8 text-zinc-400">
+                      <td colSpan={executionResult.columns.length} className="text-center py-8 text-neutral-500">
                         Query executed successfully (0 rows returned).
                       </td>
                     </tr>
@@ -171,7 +171,7 @@ export const DbmsStudioView: React.FC = () => {
                     executionResult.data.map((row, idx) => (
                       <tr 
                         key={idx} 
-                        className="hover:bg-[#12111A] transition-colors"
+                        className="hover:bg-neutral-950 transition-colors"
                       >
                         {executionResult.columns.map((col) => {
                           const val = row[col];
@@ -180,17 +180,23 @@ export const DbmsStudioView: React.FC = () => {
                           const isMaint = val === 'MAINTENANCE' || val === 'IN_PROGRESS';
 
                           return (
-                            <td key={col} className="py-2.5 px-4 whitespace-nowrap font-mono">
+                            <td key={col} className="py-2.5 px-3 whitespace-nowrap font-mono">
                               {isOccupied ? (
-                                <span className="text-rose-400 font-medium">{String(val)}</span>
+                                <span className="border border-neutral-700 bg-neutral-900 px-1.5 py-0.5 text-[10px] text-white">
+                                  [{String(val)}]
+                                </span>
                               ) : isAvail ? (
-                                <span className="text-emerald-400 font-medium">{String(val)}</span>
+                                <span className="border border-neutral-500 bg-neutral-900 px-1.5 py-0.5 text-[10px] text-white font-bold">
+                                  [{String(val)}]
+                                </span>
                               ) : isMaint ? (
-                                <span className="text-amber-400 font-medium">{String(val)}</span>
+                                <span className="border border-neutral-700 px-1.5 py-0.5 text-[10px] text-neutral-400">
+                                  [{String(val)}]
+                                </span>
                               ) : typeof val === 'number' && col.includes('rate') ? (
-                                <span className="text-violet-300 font-medium tabular-nums">{val}%</span>
+                                <span className="text-white font-bold tabular-nums">{val}%</span>
                               ) : (
-                                <span className="tabular-nums">{String(val ?? 'NULL')}</span>
+                                <span className="tabular-nums text-neutral-300">{String(val ?? 'NULL')}</span>
                               )}
                             </td>
                           );
