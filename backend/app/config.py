@@ -12,6 +12,32 @@ def mask_database_url(url: Optional[str]) -> str:
     # Matches ://user:password@
     return re.sub(r"://([^:@]+):([^@]+)@", r"://\1:***@", url)
 
+def resolve_sqlite_url(url: str) -> str:
+    """Resolves relative SQLite URL to an absolute path so working directory differences don't create empty databases."""
+    if not url or not url.startswith("sqlite:///"):
+        return url
+    path_part = url[len("sqlite:///"):]
+    if path_part == ":memory:" or os.path.isabs(path_part) or (len(path_part) > 2 and path_part[1] == ":"):
+        return url
+    
+    clean_rel = os.path.normpath(path_part)
+    backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    root_dir = os.path.abspath(os.path.join(backend_dir, ".."))
+    
+    cand_backend = os.path.join(backend_dir, clean_rel)
+    cand_root = os.path.join(root_dir, clean_rel)
+    
+    if os.path.exists(cand_backend) and os.path.getsize(cand_backend) > 0:
+        chosen = cand_backend
+    elif os.path.exists(cand_root) and os.path.getsize(cand_root) > 0:
+        chosen = cand_root
+    elif os.path.exists(cand_backend):
+        chosen = cand_backend
+    else:
+        chosen = cand_root
+        
+    return f"sqlite:///{chosen.replace(os.sep, '/')}"
+
 class Settings(BaseSettings):
     PROJECT_NAME: str = "CampusPulse — Smart Campus Digital Twin"
     VERSION: str = "1.0.0"
@@ -64,7 +90,8 @@ class Settings(BaseSettings):
         """
         # 1. Direct DATABASE_URL has highest precedence
         if self.DATABASE_URL and self.DATABASE_URL.strip():
-            return self.DATABASE_URL.strip()
+            raw_url = self.DATABASE_URL.strip()
+            return resolve_sqlite_url(raw_url)
 
         # 2. Discrete DB_* fields for Oracle
         if self.DB_USER and self.DB_PASSWORD:
@@ -77,7 +104,7 @@ class Settings(BaseSettings):
 
         # 3. Explicit SQLite mode
         if self.DB_DIALECT == "sqlite":
-            return self.SQLITE_URL
+            return resolve_sqlite_url(self.SQLITE_URL)
 
         # 4. If nothing is specified, return empty string so database.py can produce an actionable error
         return ""
