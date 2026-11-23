@@ -1,57 +1,43 @@
 @import "tailwindcss";
 
-@layer base {
-  :root {
-    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  }
-
-  body {
-    font-family: var(--font-sans);
-    background-color: #000000;
-    color: #F4F4F5;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
+:root {
+  color-scheme: dark;
 }
 
-/* High-contrast pitch black surfaces */
-.surface-card {
-  background-color: #0C0C10;
-  border: 1px solid #1C1B24;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #000000;
+  color: #ffffff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  -webkit-font-smoothing: antialiased;
 }
 
-.surface-card:hover {
-  border-color: #2D2A3A;
-}
-
-.surface-elevated {
-  background-color: #12111A;
-  border: 1px solid #2D273F;
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.8);
-}
-
-/* Tabular numerals for stable numeric data alignment */
-.tabular-nums {
-  font-variant-numeric: tabular-nums;
-}
-
-/* Refined custom scrollbar on pitch black */
+/* Minimalist monochrome scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
-
 ::-webkit-scrollbar-track {
   background: #000000;
 }
-
 ::-webkit-scrollbar-thumb {
-  background: #27272A;
-  border-radius: 9999px;
+  background: #333333;
+  border-radius: 0px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #555555;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #7C3AED;
+@keyframes scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(1000%); }
+}
+
+.animate-scan {
+  animation: scanline 2.5s linear infinite;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }

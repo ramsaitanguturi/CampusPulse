@@ -1,11 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Wrench, 
-  Plus, 
-  Search, 
-  CheckCircle2, 
-  X
-} from 'lucide-react';
 import { MaintenanceTicket, Room, User } from '../types';
 import { api } from '../services/api';
 
@@ -93,7 +86,7 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({
       await api.updateTicketStatus(ticketId, newStatus);
       fetchTickets();
       onRefreshData();
-    } catch (err) {
+    } catch {
       alert('Failed to update ticket status.');
     }
   };
@@ -109,190 +102,233 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({
     );
   });
 
+  const handleExportCSV = () => {
+    if (filteredTickets.length === 0) return;
+    const headers = ["ID", "Title", "Room", "Building", "Priority", "Status", "ReportedAt", "Description"];
+    const rows = filteredTickets.map(t => [
+      t.id,
+      `"${t.title}"`,
+      t.room_number,
+      `"${t.building_name}"`,
+      t.priority,
+      t.status,
+      t.reported_at,
+      `"${t.description.replace(/"/g, '""')}"`
+    ]);
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `CampusPulse_Maintenance_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-4 font-mono">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#1C1B24] pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-neutral-800">
         <div>
-          <h2 className="text-xl font-bold text-white tracking-tight">
-            Facilities Maintenance & Repairs
-          </h2>
-          <p className="text-sm text-zinc-400 mt-1">
-            Log room issues, track technician work orders, and manage equipment status.
+          <h1 className="text-base font-bold text-white uppercase tracking-wider">
+            Facilities Maintenance &amp; Work Orders
+          </h1>
+          <p className="text-xs text-neutral-500">
+            Defect triage, technician dispatch, and automated room offline safety mechanisms
           </p>
         </div>
 
-        <button
-          id="btn-open-ticket-modal"
-          onClick={onOpenModal}
-          className="flex items-center space-x-2 px-3.5 py-2 rounded-lg text-sm font-medium bg-rose-600 hover:bg-rose-500 text-white transition-colors shadow-sm cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Log New Ticket</span>
-        </button>
+        <div className="flex items-center space-x-2 text-xs">
+          <button
+            onClick={handleExportCSV}
+            disabled={filteredTickets.length === 0}
+            className="px-2.5 py-1 bg-black hover:bg-neutral-900 border border-neutral-700 text-neutral-300 cursor-pointer disabled:opacity-40"
+          >
+            [EXPORT CSV]
+          </button>
+          <button
+            id="btn-open-ticket-modal"
+            onClick={onOpenModal}
+            className="px-3 py-1 bg-white text-black hover:bg-neutral-200 font-bold transition cursor-pointer"
+          >
+            [LOG WORK ORDER]
+          </button>
+        </div>
       </div>
 
-      {/* Filter Matrix */}
-      <div className="surface-card p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        {/* Status Tabs */}
-        <div className="flex items-center gap-1.5 flex-wrap">
+      {/* Filter and Search Bar */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-black border border-neutral-800 p-3">
+        {/* Status Filter Pills */}
+        <div className="flex items-center space-x-1 text-xs flex-wrap gap-y-1">
           {['ALL', 'OPEN', 'IN_PROGRESS', 'RESOLVED'].map((st) => (
             <button
               key={st}
               onClick={() => setStatusFilter(st)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+              className={`px-2 py-1 text-[11px] font-mono transition cursor-pointer ${
                 statusFilter === st
-                  ? 'bg-rose-600 text-white font-semibold'
-                  : 'bg-[#12111A] text-zinc-300 hover:text-white border border-[#22212E]'
+                  ? 'bg-white text-black font-bold'
+                  : 'text-neutral-400 hover:text-white'
               }`}
             >
-              {st.replace('_', ' ')}
+              [{st.replace('_', ' ')}]
             </button>
           ))}
         </div>
 
-        {/* Priority Filter + Search */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center space-x-2 text-xs">
-            <span className="text-zinc-400 font-medium">Priority:</span>
-            <select
-              value={priorityFilter}
-              onChange={(e) => setPriorityFilter(e.target.value)}
-              className="bg-black border border-[#272635] rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-rose-500 cursor-pointer"
-            >
-              <option value="ALL">All Priorities</option>
-              <option value="LOW">Low</option>
-              <option value="MEDIUM">Medium</option>
-              <option value="HIGH">High</option>
-              <option value="CRITICAL">Critical</option>
-            </select>
-          </div>
+        <div className="flex items-center gap-2">
+          {/* Priority dropdown */}
+          <select
+            value={priorityFilter}
+            onChange={(e) => setPriorityFilter(e.target.value)}
+            className="bg-black border border-neutral-700 px-2 py-1.5 text-xs text-white focus:outline-none focus:border-white font-mono cursor-pointer"
+          >
+            <option value="ALL">ALL PRIORITIES</option>
+            <option value="LOW">LOW</option>
+            <option value="MEDIUM">MEDIUM</option>
+            <option value="HIGH">HIGH</option>
+            <option value="CRITICAL">CRITICAL</option>
+          </select>
 
-          <div className="relative w-full sm:w-56">
-            <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-2.5" />
+          {/* Search */}
+          <div className="w-full sm:w-64">
             <input
               type="text"
-              placeholder="Search tickets..."
+              placeholder="SEARCH WORK ORDERS..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 bg-black border border-[#272635] rounded-lg text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-rose-500 transition-colors"
+              className="w-full px-3 py-1.5 bg-black border border-neutral-700 text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-white font-mono"
             />
           </div>
         </div>
       </div>
 
-      {/* Tickets List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {loading ? (
-          <div className="col-span-full text-center py-16 text-zinc-400 text-sm">
-            Loading maintenance work orders...
-          </div>
-        ) : filteredTickets.length === 0 ? (
-          <div className="col-span-full text-center py-16 surface-card rounded-xl space-y-2">
-            <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
-            <h4 className="text-base font-semibold text-zinc-200">No active maintenance tickets</h4>
-            <p className="text-xs text-zinc-400">All facility equipment operating within normal conditions.</p>
-          </div>
-        ) : (
-          filteredTickets.map((t) => {
-            const priorityBadge = {
-              LOW: 'bg-zinc-800 text-zinc-300 border-zinc-700/60',
-              MEDIUM: 'bg-blue-950/40 text-blue-300 border-blue-800/40',
-              HIGH: 'bg-amber-950/40 text-amber-300 border-amber-800/40',
-              CRITICAL: 'bg-rose-950/40 text-rose-300 border-rose-800/40',
-            }[t.priority];
+      {/* Tickets Table */}
+      <div className="bg-black border border-neutral-800 font-mono">
+        <div className="px-4 py-3 border-b border-neutral-800 flex items-center justify-between">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-white">
+            Dispatch Queue ({filteredTickets.length})
+          </h3>
+        </div>
 
-            const statusBadge = {
-              OPEN: 'bg-rose-950/40 text-rose-300 border-rose-800/40',
-              IN_PROGRESS: 'bg-amber-950/40 text-amber-300 border-amber-800/40',
-              RESOLVED: 'bg-emerald-950/40 text-emerald-300 border-emerald-800/40',
-            }[t.status];
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-neutral-950 text-neutral-500 text-[11px] border-b border-neutral-800">
+              <tr>
+                <th className="py-2.5 px-3">TICKET ID</th>
+                <th className="py-2.5 px-3">PRIORITY</th>
+                <th className="py-2.5 px-3">ISSUE &amp; SUMMARY</th>
+                <th className="py-2.5 px-3">LOCATION</th>
+                <th className="py-2.5 px-3">REPORTED</th>
+                <th className="py-2.5 px-3">STATUS</th>
+                <th className="py-2.5 px-3 text-right">DISPATCH ACTION</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-neutral-900 text-neutral-300">
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="text-center py-10 text-neutral-500">
+                    FETCHING WORK ORDERS...
+                  </td>
+                </tr>
+              ) : filteredTickets.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="text-center py-10 text-neutral-500">
+                    NO WORK ORDERS RECORDED IN CURRENT SCOPE.
+                  </td>
+                </tr>
+              ) : (
+                filteredTickets.map((t) => (
+                  <tr key={t.id} className="hover:bg-neutral-950 transition-colors">
+                    <td className="py-2.5 px-3 text-neutral-400 font-bold">
+                      #{t.id}
+                    </td>
 
-            return (
-              <div
-                key={t.id}
-                className="surface-card p-5 rounded-xl hover:border-violet-500/40 transition-colors flex flex-col justify-between space-y-4"
-              >
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className={`text-xs px-2 py-0.5 rounded border uppercase font-medium ${priorityBadge}`}>
-                      {t.priority}
-                    </span>
-                    <span className="text-xs text-zinc-400 tabular-nums">
-                      #{t.id} &bull; {new Date(t.reported_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}
-                    </span>
-                  </div>
+                    <td className="py-2.5 px-3">
+                      <span className={`border px-1.5 py-0.5 text-[10px] ${
+                        t.priority === 'CRITICAL' ? 'border-white bg-white text-black font-bold' :
+                        t.priority === 'HIGH' ? 'border-neutral-500 bg-neutral-900 text-white' :
+                        'border-neutral-700 text-neutral-400'
+                      }`}>
+                        [{t.priority}]
+                      </span>
+                    </td>
 
-                  <h3 className="text-base font-semibold text-white mt-3 leading-snug">
-                    {t.title}
-                  </h3>
+                    <td className="py-2.5 px-3">
+                      <div className="text-white font-bold">{t.title}</div>
+                      <div className="text-[10px] text-neutral-500 truncate max-w-xs">{t.description}</div>
+                    </td>
 
-                  <div className="mt-1 text-xs text-zinc-400">
-                    {t.building_name} &bull; Room {t.room_number}
-                  </div>
+                    <td className="py-2.5 px-3">
+                      <div className="text-neutral-300">Room #{t.room_number}</div>
+                      <div className="text-[10px] text-neutral-500">{t.building_name}</div>
+                    </td>
 
-                  <p className="mt-2.5 text-xs text-zinc-300 line-clamp-3 leading-relaxed">
-                    {t.description}
-                  </p>
-                </div>
+                    <td className="py-2.5 px-3 tabular-nums text-[11px] text-neutral-400">
+                      {new Date(t.reported_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                    </td>
 
-                <div className="pt-3 border-t border-[#1C1B24] flex items-center justify-between">
-                  <span className={`text-xs px-2 py-0.5 rounded border font-medium ${statusBadge}`}>
-                    {t.status.replace('_', ' ')}
-                  </span>
+                    <td className="py-2.5 px-3">
+                      <span className="border border-neutral-700 px-1.5 py-0.5 text-[10px] text-neutral-300 bg-neutral-950">
+                        [{t.status.replace('_', ' ')}]
+                      </span>
+                    </td>
 
-                  {/* Status Dropdown */}
-                  <div className="relative group">
-                    <select
-                      value={t.status}
-                      onChange={(e) => handleUpdateStatus(t.id, e.target.value as any)}
-                      className="text-xs bg-[#12111A] text-zinc-300 border border-[#272635] rounded-md px-2 py-1 focus:outline-none focus:border-rose-500 cursor-pointer"
-                    >
-                      <option value="OPEN">Mark Open</option>
-                      <option value="IN_PROGRESS">In Progress</option>
-                      <option value="RESOLVED">Resolved</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-            );
-          })
-        )}
+                    <td className="py-2.5 px-3 text-right">
+                      <select
+                        value={t.status}
+                        onChange={(e) => handleUpdateStatus(t.id, e.target.value as any)}
+                        className="bg-black border border-neutral-700 text-white text-[11px] px-2 py-1 font-mono focus:outline-none cursor-pointer"
+                      >
+                        <option value="OPEN">[SET OPEN]</option>
+                        <option value="IN_PROGRESS">[IN PROGRESS]</option>
+                        <option value="RESOLVED">[RESOLVED]</option>
+                      </select>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Log Ticket Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-xl surface-elevated p-6 border border-[#2D273F] relative space-y-4">
-            <button
-              onClick={onCloseModal}
-              className="absolute top-4 right-4 text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-lg bg-rose-950/60 border border-rose-800/60 flex items-center justify-center text-rose-400">
-                <Wrench className="w-5 h-5" />
-              </div>
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 font-mono"
+          onClick={onCloseModal}
+        >
+          <div 
+            className="w-full max-w-lg bg-black border border-neutral-700 p-5 relative space-y-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
               <div>
-                <h3 className="text-base font-semibold text-white">
-                  Log Facility Issue
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                  LOG FACILITY ISSUE / WORK ORDER
                 </h3>
-                <p className="text-xs text-zinc-400 mt-0.5">
-                  Report equipment defects, AC failures, or hardware repairs.
+                <p className="text-[10px] text-neutral-500 mt-0.5">
+                  Report equipment defects, AC failures, or hardware repairs
                 </p>
               </div>
+              <button
+                onClick={onCloseModal}
+                className="text-neutral-500 hover:text-white text-xs cursor-pointer"
+              >
+                [CLOSE]
+              </button>
             </div>
 
-            <form onSubmit={handleCreateTicket} className="space-y-4 text-xs">
+            <form onSubmit={handleCreateTicket} className="space-y-3 text-xs font-mono">
               {/* Room Select */}
               <div>
-                <label className="block text-zinc-300 mb-1 font-medium">Room Location *</label>
+                <label className="block text-[11px] text-neutral-400 uppercase tracking-wider mb-1">
+                  Room Location *
+                </label>
                 <select
                   value={roomId}
                   onChange={(e) => setRoomId(Number(e.target.value))}
-                  className="w-full bg-black border border-[#272635] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-rose-500 cursor-pointer"
+                  className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-white text-xs font-mono focus:border-white focus:outline-none cursor-pointer"
                 >
                   {rooms.map((r) => (
                     <option key={r.id} value={r.id}>
@@ -304,11 +340,13 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({
 
               {/* User Select */}
               <div>
-                <label className="block text-zinc-300 mb-1 font-medium">Reported By *</label>
+                <label className="block text-[11px] text-neutral-400 uppercase tracking-wider mb-1">
+                  Reporting Staff *
+                </label>
                 <select
                   value={userId}
                   onChange={(e) => setUserId(Number(e.target.value))}
-                  className="w-full bg-black border border-[#272635] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-rose-500 cursor-pointer"
+                  className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-white text-xs font-mono focus:border-white focus:outline-none cursor-pointer"
                 >
                   {users.map((u) => (
                     <option key={u.id} value={u.id}>
@@ -320,59 +358,65 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({
 
               {/* Priority */}
               <div>
-                <label className="block text-zinc-300 mb-1 font-medium">Priority Level *</label>
+                <label className="block text-[11px] text-neutral-400 uppercase tracking-wider mb-1">
+                  Priority Severity *
+                </label>
                 <select
                   value={priority}
                   onChange={(e) => setPriority(e.target.value)}
-                  className="w-full bg-black border border-[#272635] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-rose-500 cursor-pointer"
+                  className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-white text-xs font-mono focus:border-white focus:outline-none cursor-pointer"
                 >
-                  <option value="LOW">Low &bull; Minor cosmetic or non-blocking</option>
-                  <option value="MEDIUM">Medium &bull; Standard equipment failure</option>
-                  <option value="HIGH">High &bull; Class/event blocking issue</option>
-                  <option value="CRITICAL">Critical &bull; Safety hazard / Locks room</option>
+                  <option value="LOW">LOW - Minor cosmetic or non-blocking</option>
+                  <option value="MEDIUM">MEDIUM - Standard equipment fault</option>
+                  <option value="HIGH">HIGH - Class/session blocking defect</option>
+                  <option value="CRITICAL">CRITICAL - Safety hazard / locks room</option>
                 </select>
               </div>
 
               {/* Title */}
               <div>
-                <label className="block text-zinc-300 mb-1 font-medium">Issue Title *</label>
+                <label className="block text-[11px] text-neutral-400 uppercase tracking-wider mb-1">
+                  Issue Title *
+                </label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Projector HDMI port broken or AC leaking"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full bg-black border border-[#272635] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-rose-500 transition-colors"
+                  className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-white text-xs font-mono focus:border-white focus:outline-none"
                 />
               </div>
 
               {/* Description */}
               <div>
-                <label className="block text-zinc-300 mb-1 font-medium">Detailed Description *</label>
+                <label className="block text-[11px] text-neutral-400 uppercase tracking-wider mb-1">
+                  Detailed Description *
+                </label>
                 <textarea
                   required
                   rows={3}
-                  placeholder="Describe the failure symptoms, specific equipment model, or safety concerns..."
+                  placeholder="Describe failure symptoms, specific equipment model, or safety concerns..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full bg-black border border-[#272635] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-rose-500 transition-colors"
+                  className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-white text-xs font-mono focus:border-white focus:outline-none"
                 />
               </div>
 
-              <div className="flex items-center justify-end space-x-3 pt-3 border-t border-[#1C1B24]">
+              <div className="flex items-center justify-end space-x-2 pt-3 border-t border-neutral-800">
                 <button
                   type="button"
                   onClick={onCloseModal}
-                  className="px-4 py-2 rounded-lg text-xs text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                  className="px-3 py-1.5 bg-black border border-neutral-700 text-xs text-neutral-400 hover:text-white cursor-pointer"
                 >
-                  Cancel
+                  [DISMISS]
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-4 py-2 rounded-lg text-xs font-medium bg-rose-600 hover:bg-rose-500 text-white transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
+                  className="px-3 py-1.5 bg-white text-black hover:bg-neutral-200 text-xs font-bold transition cursor-pointer disabled:opacity-40"
                 >
-                  {submitting ? 'Submitting...' : 'Submit Work Order'}
+                  {submitting ? '[SUBMITTING...]' : '[SUBMIT WORK ORDER]'}
                 </button>
               </div>
             </form>

@@ -1,12 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Sparkles, 
-  Plus, 
-  MapPin, 
-  X,
-  DoorClosed, 
-  Clock 
-} from 'lucide-react';
 import { CampusEvent, Building, Room } from '../types';
 import { api } from '../services/api';
 
@@ -109,162 +101,153 @@ export const EventsView: React.FC<EventsViewProps> = ({
   const availableRoomsForBuilding = rooms.filter(r => r.building_id === Number(buildingId));
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-4 font-mono">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#1C1B24] pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-neutral-800">
         <div>
-          <h2 className="text-xl font-bold text-white tracking-tight">
-            Campus Events & Assemblies
-          </h2>
-          <p className="text-sm text-zinc-400 mt-1">
-            Lectures, symposiums, and student activities scheduled across university spaces.
+          <h1 className="text-base font-bold text-white uppercase tracking-wider">
+            Campus Event Schedules
+          </h1>
+          <p className="text-xs text-neutral-500">
+            Synchronized facility reservations for academic colloquia, technical symposiums, and assemblies
           </p>
         </div>
 
         <button
           id="btn-open-event-modal"
           onClick={onOpenModal}
-          className="flex items-center space-x-2 px-3.5 py-2 rounded-lg text-sm font-medium bg-violet-600 hover:bg-violet-500 text-white transition-colors shadow-sm cursor-pointer"
+          className="px-3 py-1 bg-white text-black hover:bg-neutral-200 font-bold transition cursor-pointer text-xs"
         >
-          <Plus className="w-4 h-4" />
-          <span>Schedule Event</span>
+          [SCHEDULE EVENT]
         </button>
       </div>
 
-      {/* Category Filter Tabs */}
-      <div className="surface-card p-3 rounded-xl flex items-center gap-1.5 flex-wrap text-xs">
-        <span className="text-zinc-400 font-medium mr-2">Category:</span>
+      {/* Category Filter Pills */}
+      <div className="flex items-center space-x-1 text-xs bg-black border border-neutral-800 p-3 overflow-x-auto">
+        <span className="text-neutral-500 uppercase tracking-wider text-[11px] mr-2">CATEGORY:</span>
         {['ALL', 'TECH', 'ACADEMIC', 'WORKSHOP', 'CULTURAL'].map(cat => (
           <button
             key={cat}
             onClick={() => setCategoryFilter(cat)}
-            className={`px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
+            className={`px-2.5 py-1 text-[11px] font-mono transition cursor-pointer ${
               categoryFilter === cat
-                ? 'bg-violet-600 text-white font-semibold'
-                : 'bg-[#12111A] text-zinc-300 hover:text-white border border-[#22212E]'
+                ? 'bg-white text-black font-bold'
+                : 'text-neutral-400 hover:text-white'
             }`}
           >
-            {cat}
+            [{cat}]
           </button>
         ))}
       </div>
 
       {/* Events Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 font-mono">
         {loading ? (
-          <div className="col-span-full text-center py-16 text-zinc-400 text-sm">
-            Loading upcoming campus events...
+          <div className="col-span-full text-center py-16 text-neutral-500 text-xs">
+            FETCHING CAMPUS EVENTS...
           </div>
         ) : filteredEvents.length === 0 ? (
-          <div className="col-span-full text-center py-16 surface-card rounded-xl space-y-2">
-            <Sparkles className="w-8 h-8 text-zinc-500 mx-auto" />
-            <h4 className="text-base font-semibold text-zinc-200">No events found</h4>
-            <p className="text-xs text-zinc-400">Schedule the next seminar or workshop.</p>
+          <div className="col-span-full text-center py-16 bg-black border border-neutral-800 space-y-2">
+            <h4 className="text-sm font-bold uppercase tracking-wider text-white">No Events Scheduled</h4>
+            <p className="text-xs text-neutral-500">Publish the next academic or technical assembly.</p>
           </div>
         ) : (
-          filteredEvents.map(ev => {
-            const catColors: Record<CampusEvent['category'], string> = {
-              TECH: 'bg-violet-950/50 text-violet-300 border-violet-800/50',
-              ACADEMIC: 'bg-indigo-950/40 text-indigo-300 border-indigo-800/40',
-              WORKSHOP: 'bg-emerald-950/40 text-emerald-300 border-emerald-800/40',
-              CULTURAL: 'bg-rose-950/40 text-rose-300 border-rose-800/40',
-              ATHLETIC: 'bg-amber-950/40 text-amber-300 border-amber-800/40',
-            };
-
-            return (
-              <div
-                key={ev.id}
-                className="surface-card p-5 rounded-xl hover:border-violet-500/40 transition-colors flex flex-col justify-between space-y-4"
-              >
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className={`text-xs px-2 py-0.5 rounded border uppercase font-medium ${catColors[ev.category] || 'bg-zinc-800 text-zinc-300 border-zinc-700/60'}`}>
-                      {ev.category}
-                    </span>
-                    <span className="text-xs text-zinc-400 tabular-nums">
-                      {new Date(ev.start_time).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </span>
-                  </div>
-
-                  <h3 className="text-base font-semibold text-white mt-3 leading-snug">
-                    {ev.title}
-                  </h3>
-
-                  <p className="mt-2 text-xs text-zinc-300 line-clamp-3 leading-relaxed">
-                    {ev.description || 'Campus-wide assembly and seminar.'}
-                  </p>
+          filteredEvents.map(ev => (
+            <div
+              key={ev.id}
+              className="bg-black border border-neutral-800 p-4 hover:border-neutral-600 transition-colors flex flex-col justify-between space-y-4"
+            >
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] border border-neutral-700 px-1.5 py-0.5 text-white font-bold bg-neutral-900">
+                    [{ev.category}]
+                  </span>
+                  <span className="text-[11px] text-neutral-400 tabular-nums">
+                    {new Date(ev.start_time).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </span>
                 </div>
 
-                <div className="pt-3 border-t border-[#1C1B24] space-y-2 text-xs text-zinc-300">
-                  <div className="flex items-center space-x-2 text-zinc-400">
-                    <MapPin className="w-3.5 h-3.5 text-violet-400 shrink-0" />
-                    <span>{ev.building_name} ({ev.building_code})</span>
-                  </div>
+                <h3 className="text-sm font-bold text-white mt-3 uppercase tracking-tight">
+                  {ev.title}
+                </h3>
 
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-zinc-300 flex items-center space-x-1">
-                      <DoorClosed className="w-3.5 h-3.5 text-zinc-400" />
-                      <span>{ev.room_number ? `Room ${ev.room_number}` : 'Central Complex Hall'}</span>
-                    </span>
+                <p className="mt-2 text-xs text-neutral-400 line-clamp-3 leading-relaxed">
+                  {ev.description || 'Campus-wide assembly and seminar.'}
+                </p>
+              </div>
 
-                    <span className="text-zinc-400 flex items-center space-x-1 tabular-nums">
-                      <Clock className="w-3.5 h-3.5 text-zinc-400" />
-                      <span>{new Date(ev.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                    </span>
-                  </div>
+              <div className="pt-3 border-t border-neutral-900 space-y-1.5 text-xs text-neutral-400">
+                <div className="flex items-center justify-between">
+                  <span className="text-white">
+                    {ev.building_name} ({ev.building_code})
+                  </span>
+                  <span className="text-neutral-500 text-[11px]">
+                    {ev.room_number ? `ROOM #${ev.room_number}` : 'CENTRAL HALL'}
+                  </span>
+                </div>
+
+                <div className="text-[11px] text-neutral-500 tabular-nums">
+                  START: {new Date(ev.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} &rarr;{' '}
+                  {new Date(ev.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </div>
               </div>
-            );
-          })
+            </div>
+          ))
         )}
       </div>
 
       {/* Schedule Event Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-xl surface-elevated p-6 border border-[#2D273F] relative space-y-4">
-            <button
-              onClick={onCloseModal}
-              className="absolute top-4 right-4 text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-lg bg-violet-950/60 border border-violet-800/60 flex items-center justify-center text-violet-400">
-                <Sparkles className="w-5 h-5" />
-              </div>
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 font-mono"
+          onClick={onCloseModal}
+        >
+          <div 
+            className="w-full max-w-lg bg-black border border-neutral-700 p-5 relative space-y-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
               <div>
-                <h3 className="text-base font-semibold text-white">
-                  Schedule Campus Event
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                  SCHEDULE CAMPUS ASSEMBLY / EVENT
                 </h3>
-                <p className="text-xs text-zinc-400 mt-0.5">
-                  Publish a lecture, workshop, or symposium to the university calendar.
+                <p className="text-[10px] text-neutral-500 mt-0.5">
+                  Publish a lecture, workshop, or symposium to the university calendar
                 </p>
               </div>
+              <button
+                onClick={onCloseModal}
+                className="text-neutral-500 hover:text-white text-xs cursor-pointer"
+              >
+                [CLOSE]
+              </button>
             </div>
 
-            <form onSubmit={handleCreateEvent} className="space-y-4 text-xs">
+            <form onSubmit={handleCreateEvent} className="space-y-3 text-xs font-mono">
               {/* Title */}
               <div>
-                <label className="block text-zinc-300 mb-1 font-medium">Event Title *</label>
+                <label className="block text-[11px] text-neutral-400 uppercase tracking-wider mb-1">
+                  Event Title *
+                </label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. NextGen Autonomous Systems Symposium"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full bg-black border border-[#272635] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500 transition-colors"
+                  className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-white text-xs font-mono focus:border-white focus:outline-none"
                 />
               </div>
 
               {/* Category */}
               <div>
-                <label className="block text-zinc-300 mb-1 font-medium">Category *</label>
+                <label className="block text-[11px] text-neutral-400 uppercase tracking-wider mb-1">
+                  Category *
+                </label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full bg-black border border-[#272635] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500 cursor-pointer"
+                  className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-white text-xs font-mono focus:border-white focus:outline-none cursor-pointer"
                 >
                   <option value="TECH">Technology / Engineering</option>
                   <option value="ACADEMIC">Academic Colloquium</option>
@@ -276,14 +259,16 @@ export const EventsView: React.FC<EventsViewProps> = ({
               {/* Building & Room Selection */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-zinc-300 mb-1 font-medium">Host Building *</label>
+                  <label className="block text-[11px] text-neutral-400 uppercase tracking-wider mb-1">
+                    Host Building *
+                  </label>
                   <select
                     value={buildingId}
                     onChange={(e) => {
                       setBuildingId(Number(e.target.value));
                       setRoomId('');
                     }}
-                    className="w-full bg-black border border-[#272635] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500 cursor-pointer"
+                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-white text-xs font-mono focus:border-white focus:outline-none cursor-pointer"
                   >
                     {buildings.map((b) => (
                       <option key={b.id} value={b.id}>
@@ -294,11 +279,13 @@ export const EventsView: React.FC<EventsViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-zinc-300 mb-1 font-medium">Room (Optional)</label>
+                  <label className="block text-[11px] text-neutral-400 uppercase tracking-wider mb-1">
+                    Room (Optional)
+                  </label>
                   <select
                     value={roomId}
                     onChange={(e) => setRoomId(e.target.value ? Number(e.target.value) : '')}
-                    className="w-full bg-black border border-[#272635] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500 cursor-pointer"
+                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-white text-xs font-mono focus:border-white focus:outline-none cursor-pointer"
                   >
                     <option value="">Complex Main Auditorium / Hall</option>
                     {availableRoomsForBuilding.map((r) => (
@@ -313,65 +300,67 @@ export const EventsView: React.FC<EventsViewProps> = ({
               {/* Date & Time Range */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-zinc-300 mb-1 font-medium">Date *</label>
+                  <label className="block text-[11px] text-neutral-400 uppercase tracking-wider mb-1">Date *</label>
                   <input
                     type="date"
                     required
                     value={eventDate}
                     onChange={(e) => setEventDate(e.target.value)}
-                    className="w-full bg-black border border-[#272635] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500"
+                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-white text-xs font-mono focus:border-white focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-zinc-300 mb-1 font-medium">Start Time *</label>
+                  <label className="block text-[11px] text-neutral-400 uppercase tracking-wider mb-1">Start Time *</label>
                   <input
                     type="time"
                     required
                     value={startTime}
                     onChange={(e) => setStartTime(e.target.value)}
-                    className="w-full bg-black border border-[#272635] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500"
+                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-white text-xs font-mono focus:border-white focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-zinc-300 mb-1 font-medium">End Time *</label>
+                  <label className="block text-[11px] text-neutral-400 uppercase tracking-wider mb-1">End Time *</label>
                   <input
                     type="time"
                     required
                     value={endTime}
                     onChange={(e) => setEndTime(e.target.value)}
-                    className="w-full bg-black border border-[#272635] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500"
+                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-white text-xs font-mono focus:border-white focus:outline-none"
                   />
                 </div>
               </div>
 
               {/* Description */}
               <div>
-                <label className="block text-zinc-300 mb-1 font-medium">Description</label>
+                <label className="block text-[11px] text-neutral-400 uppercase tracking-wider mb-1">
+                  Description
+                </label>
                 <textarea
                   rows={2}
                   placeholder="Outline speakers, keynote topics, prerequisites, or target audience..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full bg-black border border-[#272635] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500 transition-colors"
+                  className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-white text-xs font-mono focus:border-white focus:outline-none"
                 />
               </div>
 
-              <div className="flex items-center justify-end space-x-3 pt-3 border-t border-[#1C1B24]">
+              <div className="flex items-center justify-end space-x-2 pt-3 border-t border-neutral-800">
                 <button
                   type="button"
                   onClick={onCloseModal}
-                  className="px-4 py-2 rounded-lg text-xs text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                  className="px-3 py-1.5 bg-black border border-neutral-700 text-xs text-neutral-400 hover:text-white cursor-pointer"
                 >
-                  Cancel
+                  [DISMISS]
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-4 py-2 rounded-lg text-xs font-medium bg-violet-600 hover:bg-violet-500 text-white transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
+                  className="px-3 py-1.5 bg-white text-black hover:bg-neutral-200 text-xs font-bold transition cursor-pointer disabled:opacity-40"
                 >
-                  {submitting ? 'Scheduling...' : 'Publish Event'}
+                  {submitting ? '[SCHEDULING...]' : '[PUBLISH EVENT]'}
                 </button>
               </div>
             </form>

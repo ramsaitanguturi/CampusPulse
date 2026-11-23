@@ -1,11 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  CalendarClock, 
-  Plus, 
-  Search, 
-  X,
-  AlertTriangle
-} from 'lucide-react';
 import { Booking, Room, User } from '../types';
 import { api, ApiError } from '../services/api';
 
@@ -124,7 +117,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
       await api.cancelBooking(bookingId);
       fetchBookings();
       onRefreshData();
-    } catch (_err) {
+    } catch {
       alert('Failed to cancel booking.');
     }
   };
@@ -140,137 +133,173 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
     );
   });
 
+  const handleExportCSV = () => {
+    if (filteredBookings.length === 0) return;
+    const headers = ["ID", "Title", "Room", "Building", "User", "Start", "End", "Status"];
+    const rows = filteredBookings.map(b => [
+      b.id,
+      `"${b.title}"`,
+      b.room_number,
+      `"${b.building_name}"`,
+      `"${b.user_name}"`,
+      b.start_time,
+      b.end_time,
+      b.status
+    ]);
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `CampusPulse_Reservations_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-4 font-mono">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#1C1B24] pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-neutral-800">
         <div>
-          <h2 className="text-xl font-bold text-white tracking-tight">
-            Room Reservations & Schedule
-          </h2>
-          <p className="text-sm text-zinc-400 mt-1">
-            Conflict-free room reservation engine with transactional overlap verification.
+          <h1 className="text-base font-bold text-white uppercase tracking-wider">
+            Room Reservations &amp; Schedule
+          </h1>
+          <p className="text-xs text-neutral-500">
+            Collision-free space allocations backed by transactional Oracle 21c integrity checks
           </p>
         </div>
 
-        <button
-          id="btn-open-booking-modal"
-          onClick={onOpenModal}
-          className="flex items-center space-x-2 px-3.5 py-2 rounded-lg text-sm font-medium bg-violet-600 hover:bg-violet-500 text-white transition-colors shadow-sm cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>New Reservation</span>
-        </button>
+        <div className="flex items-center space-x-2 text-xs">
+          <button
+            onClick={handleExportCSV}
+            disabled={filteredBookings.length === 0}
+            className="px-2.5 py-1 bg-black hover:bg-neutral-900 border border-neutral-700 text-neutral-300 cursor-pointer disabled:opacity-40"
+          >
+            [EXPORT CSV]
+          </button>
+          <button
+            id="btn-open-booking-modal"
+            onClick={onOpenModal}
+            className="px-3 py-1 bg-white text-black hover:bg-neutral-200 font-bold transition cursor-pointer"
+          >
+            [NEW RESERVATION]
+          </button>
+        </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="surface-card p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        {/* Status Filter Tabs */}
-        <div className="flex items-center gap-1.5 flex-wrap">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-black border border-neutral-800 p-3">
+        {/* Status Filter Pills */}
+        <div className="flex items-center space-x-1 text-xs">
           {['ALL', 'CONFIRMED', 'COMPLETED', 'CANCELLED'].map((st) => (
             <button
               key={st}
               onClick={() => setStatusFilter(st)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+              className={`px-2 py-1 text-[11px] font-mono transition cursor-pointer ${
                 statusFilter === st
-                  ? 'bg-violet-600 text-white font-semibold'
-                  : 'bg-[#12111A] text-zinc-300 hover:text-white border border-[#22212E]'
+                  ? 'bg-white text-black font-bold'
+                  : 'text-neutral-400 hover:text-white'
               }`}
             >
-              {st}
+              [{st}]
             </button>
           ))}
         </div>
 
         {/* Search */}
-        <div className="relative w-full sm:w-72">
-          <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-2.5" />
+        <div className="w-full sm:w-80">
           <input
             type="text"
-            placeholder="Search by session, room, user..."
+            placeholder="SEARCH BY SESSION, ROOM, USER..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-1.5 bg-black border border-[#272635] rounded-lg text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-violet-500 transition-colors"
+            className="w-full px-3 py-1.5 bg-black border border-neutral-700 text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-white font-mono"
           />
         </div>
       </div>
 
       {/* Bookings Table */}
-      <div className="surface-card rounded-xl overflow-hidden">
+      <div className="bg-black border border-neutral-800 font-mono">
+        <div className="px-4 py-3 border-b border-neutral-800 flex items-center justify-between">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-white">
+            Allocations Dossier ({filteredBookings.length})
+          </h3>
+        </div>
+
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="border-b border-[#1C1B24] bg-[#0A0A0E] text-zinc-300 text-xs font-semibold uppercase tracking-wider">
-                <th className="py-3.5 px-4">Reservation Title</th>
-                <th className="py-3.5 px-4">Location & Room</th>
-                <th className="py-3.5 px-4">Booked By</th>
-                <th className="py-3.5 px-4">Time Interval</th>
-                <th className="py-3.5 px-4">Status</th>
-                <th className="py-3.5 px-4 text-right">Actions</th>
+          <table className="w-full text-left text-xs">
+            <thead className="bg-neutral-950 text-neutral-500 text-[11px] border-b border-neutral-800">
+              <tr>
+                <th className="py-2.5 px-3">RESERVATION TITLE</th>
+                <th className="py-2.5 px-3">LOCATION &amp; ROOM</th>
+                <th className="py-2.5 px-3">BOOKED BY</th>
+                <th className="py-2.5 px-3">INTERVAL WINDOW</th>
+                <th className="py-2.5 px-3">STATUS</th>
+                <th className="py-2.5 px-3 text-right">ACTION</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#1C1B24]">
+            <tbody className="divide-y divide-neutral-900 text-neutral-300">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-zinc-400">
-                    Loading reservations...
+                  <td colSpan={6} className="text-center py-10 text-neutral-500">
+                    FETCHING ACTIVE RESERVATIONS...
                   </td>
                 </tr>
               ) : filteredBookings.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-zinc-400">
-                    No reservations matching current filter.
+                  <td colSpan={6} className="text-center py-10 text-neutral-500">
+                    NO RESERVATIONS MATCHING ACTIVE FILTER.
                   </td>
                 </tr>
               ) : (
                 filteredBookings.map((b) => (
-                  <tr key={b.id} className="hover:bg-[#12111A] transition-colors">
-                    <td className="py-3.5 px-4 font-semibold text-white">
+                  <tr key={b.id} className="hover:bg-neutral-950 transition-colors">
+                    <td className="py-2.5 px-3 text-white font-bold">
                       {b.title}
                     </td>
 
-                    <td className="py-3.5 px-4">
-                      <div className="text-zinc-200 font-medium">
-                        Room {b.room_number}
+                    <td className="py-2.5 px-3">
+                      <div className="text-white">
+                        Room #{b.room_number}
                       </div>
-                      <div className="text-xs text-zinc-400 mt-0.5">
+                      <div className="text-[10px] text-neutral-500">
                         {b.building_name} ({b.building_code})
                       </div>
                     </td>
 
-                    <td className="py-3.5 px-4">
-                      <div className="text-zinc-200 font-medium">{b.user_name}</div>
-                      <div className="text-xs text-zinc-400 mt-0.5">{b.user_email}</div>
+                    <td className="py-2.5 px-3">
+                      <div className="text-neutral-300">{b.user_name}</div>
+                      <div className="text-[10px] text-neutral-500">{b.user_email}</div>
                     </td>
 
-                    <td className="py-3.5 px-4 tabular-nums">
-                      <div className="text-zinc-200 font-medium">
+                    <td className="py-2.5 px-3 tabular-nums text-[11px]">
+                      <div className="text-white">
                         {new Date(b.start_time).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
                       </div>
-                      <div className="text-xs text-zinc-400 mt-0.5">
+                      <div className="text-neutral-500 text-[10px]">
                         {new Date(b.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} &rarr;{' '}
                         {new Date(b.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </td>
 
-                    <td className="py-3.5 px-4">
-                      <span className={`text-xs px-2 py-0.5 rounded border inline-flex items-center font-medium ${
-                        b.status === 'CONFIRMED' ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/40' :
-                        b.status === 'COMPLETED' ? 'bg-[#161522] text-zinc-300 border-[#252433]' :
-                        'bg-[#161522] text-zinc-400 border-[#252433]'
+                    <td className="py-2.5 px-3">
+                      <span className={`border px-1.5 py-0.5 text-[10px] ${
+                        b.status === 'CONFIRMED' ? 'border-neutral-500 text-white bg-neutral-900' :
+                        b.status === 'COMPLETED' ? 'border-neutral-800 text-neutral-400' :
+                        'border-neutral-900 text-neutral-600'
                       }`}>
-                        <span>{b.status}</span>
+                        [{b.status}]
                       </span>
                     </td>
 
-                    <td className="py-3.5 px-4 text-right">
+                    <td className="py-2.5 px-3 text-right">
                       {b.status === 'CONFIRMED' && (
                         <button
                           onClick={() => handleCancelBooking(b.id)}
-                          className="px-2.5 py-1 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 border border-rose-800/40 rounded-md transition-colors cursor-pointer"
+                          className="text-neutral-400 hover:text-white cursor-pointer text-[11px]"
                           title="Cancel booking"
                         >
-                          Cancel
+                          [CANCEL]
                         </button>
                       )}
                     </td>
@@ -284,70 +313,75 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
 
       {/* Create Booking Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs">
-          <div className="w-full max-w-xl rounded-xl surface-elevated p-6 border border-[#2D273F] relative space-y-4 max-h-[90vh] overflow-y-auto">
-            <button
-              onClick={onCloseModal}
-              className="absolute top-4 right-4 text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-lg bg-violet-950/60 border border-violet-800/60 flex items-center justify-center text-violet-400">
-                <CalendarClock className="w-5 h-5" />
-              </div>
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 font-mono"
+          onClick={onCloseModal}
+        >
+          <div 
+            className="w-full max-w-xl bg-black border border-neutral-700 p-5 relative space-y-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-neutral-800">
               <div>
-                <h3 className="text-base font-semibold text-white">
-                  Schedule Room Reservation
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                  SCHEDULE SPACE RESERVATION
                 </h3>
-                <p className="text-xs text-zinc-400 mt-0.5">
-                  Transactional verification ensures collision-free reservations.
+                <p className="text-[10px] text-neutral-500 mt-0.5">
+                  Transactional verification ensures collision-free reservations
                 </p>
               </div>
+              <button
+                onClick={onCloseModal}
+                className="text-neutral-500 hover:text-white text-xs cursor-pointer"
+              >
+                [CLOSE]
+              </button>
             </div>
 
             {/* Error / Conflict Alert Box */}
             {formError && (
-              <div className="p-3.5 rounded-lg bg-rose-950/40 border border-rose-800/50 text-rose-300 text-xs space-y-2">
-                <div className="flex items-start space-x-2 font-medium">
-                  <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-                  <span>{formError}</span>
+              <div className="p-3 bg-neutral-900 border border-neutral-600 text-xs text-white space-y-1.5">
+                <div className="font-bold">
+                  [RESERVATION CONFLICT]: {formError}
                 </div>
 
                 {conflictDetails && (
-                  <div className="p-2.5 rounded bg-rose-950/60 border border-rose-800/30 text-xs text-rose-200 space-y-1">
-                    <div><strong>Conflicting Session:</strong> {conflictDetails.title}</div>
-                    <div><strong>Reserved By:</strong> {conflictDetails.user_name}</div>
+                  <div className="p-2 bg-neutral-950 border border-neutral-800 text-[11px] text-neutral-300 space-y-0.5 mt-2">
+                    <div>CONFLICTING SESSION: {conflictDetails.title}</div>
+                    <div>RESERVED BY: {conflictDetails.user_name}</div>
                     <div>
-                      <strong>Window:</strong> {new Date(conflictDetails.start_time).toLocaleTimeString()} - {new Date(conflictDetails.end_time).toLocaleTimeString()}
+                      TIME WINDOW: {new Date(conflictDetails.start_time).toLocaleTimeString()} - {new Date(conflictDetails.end_time).toLocaleTimeString()}
                     </div>
                   </div>
                 )}
               </div>
             )}
 
-            <form onSubmit={handleCreateBooking} className="space-y-4 text-xs">
+            <form onSubmit={handleCreateBooking} className="space-y-3 text-xs font-mono">
               {/* Title */}
               <div>
-                <label className="block text-zinc-300 mb-1 font-medium">Session Title *</label>
+                <label className="block text-[11px] text-neutral-400 uppercase tracking-wider mb-1">
+                  Session Title *
+                </label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Distributed Systems Lab or Capstone Team Sync"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full bg-black border border-[#272635] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500 transition-colors"
+                  className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-white text-xs font-mono focus:border-white focus:outline-none"
                 />
               </div>
 
               {/* Room Selection */}
               <div>
-                <label className="block text-zinc-300 mb-1 font-medium">Select Room *</label>
+                <label className="block text-[11px] text-neutral-400 uppercase tracking-wider mb-1">
+                  Select Room *
+                </label>
                 <select
                   value={selectedRoomId}
                   onChange={(e) => setSelectedRoomId(Number(e.target.value))}
-                  className="w-full bg-black border border-[#272635] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500 cursor-pointer"
+                  className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-white text-xs font-mono focus:border-white focus:outline-none cursor-pointer"
                 >
                   {rooms.filter(r => r.status !== 'MAINTENANCE').map((r) => (
                     <option key={r.id} value={r.id}>
@@ -359,11 +393,13 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
 
               {/* User Selector */}
               <div>
-                <label className="block text-zinc-300 mb-1 font-medium">Reserving User *</label>
+                <label className="block text-[11px] text-neutral-400 uppercase tracking-wider mb-1">
+                  Reserving User *
+                </label>
                 <select
                   value={selectedUserId}
                   onChange={(e) => setSelectedUserId(Number(e.target.value))}
-                  className="w-full bg-black border border-[#272635] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500 cursor-pointer"
+                  className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-white text-xs font-mono focus:border-white focus:outline-none cursor-pointer"
                 >
                   {users.map((u) => (
                     <option key={u.id} value={u.id}>
@@ -376,55 +412,55 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
               {/* Date & Time Range */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-zinc-300 mb-1 font-medium">Date *</label>
+                  <label className="block text-[11px] text-neutral-400 uppercase tracking-wider mb-1">Date *</label>
                   <input
                     type="date"
                     required
                     value={bookingDate}
                     onChange={(e) => setBookingDate(e.target.value)}
-                    className="w-full bg-black border border-[#272635] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500"
+                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-white text-xs font-mono focus:border-white focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-zinc-300 mb-1 font-medium">Start Time *</label>
+                  <label className="block text-[11px] text-neutral-400 uppercase tracking-wider mb-1">Start Time *</label>
                   <input
                     type="time"
                     required
                     value={startTime}
                     onChange={(e) => setStartTime(e.target.value)}
-                    className="w-full bg-black border border-[#272635] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500"
+                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-white text-xs font-mono focus:border-white focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-zinc-300 mb-1 font-medium">End Time *</label>
+                  <label className="block text-[11px] text-neutral-400 uppercase tracking-wider mb-1">End Time *</label>
                   <input
                     type="time"
                     required
                     value={endTime}
                     onChange={(e) => setEndTime(e.target.value)}
-                    className="w-full bg-black border border-[#272635] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-violet-500"
+                    className="w-full bg-neutral-950 border border-neutral-800 px-3 py-2 text-white text-xs font-mono focus:border-white focus:outline-none"
                   />
                 </div>
               </div>
 
               {/* Action buttons */}
-              <div className="flex items-center justify-end space-x-3 pt-3 border-t border-[#1C1B24]">
+              <div className="flex items-center justify-end space-x-2 pt-3 border-t border-neutral-800">
                 <button
                   type="button"
                   onClick={onCloseModal}
-                  className="px-4 py-2 rounded-lg text-xs text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                  className="px-3 py-1.5 bg-black border border-neutral-700 text-xs text-neutral-400 hover:text-white cursor-pointer"
                 >
-                  Cancel
+                  [DISMISS]
                 </button>
                 <button
                   id="btn-submit-booking"
                   type="submit"
                   disabled={submitting}
-                  className="px-4 py-2 rounded-lg text-xs font-medium bg-violet-600 hover:bg-violet-500 text-white transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
+                  className="px-3 py-1.5 bg-white text-black hover:bg-neutral-200 text-xs font-bold transition cursor-pointer disabled:opacity-40"
                 >
-                  {submitting ? 'Confirming...' : 'Confirm Reservation'}
+                  {submitting ? '[CONFIRMING...]' : '[CONFIRM RESERVATION]'}
                 </button>
               </div>
             </form>
