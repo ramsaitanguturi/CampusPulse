@@ -43,9 +43,13 @@ export const CampusMap: React.FC<CampusMapProps> = ({ buildings, onOpenBookingMo
   };
 
   const buildingMapCoords: Record<string, { x: number; y: number; w: number; h: number }> = {
+    LHB: { x: 180, y: 150, w: 190, h: 140 },
+    CC: { x: 440, y: 100, w: 200, h: 150 },
+    SCI: { x: 720, y: 160, w: 190, h: 140 },
+    SHC: { x: 260, y: 390, w: 210, h: 160 },
+    MWB: { x: 600, y: 380, w: 220, h: 160 },
     ENG: { x: 180, y: 150, w: 190, h: 140 },
     TURING: { x: 440, y: 100, w: 200, h: 150 },
-    SCI: { x: 720, y: 160, w: 190, h: 140 },
     LIB: { x: 260, y: 390, w: 210, h: 160 },
     STU: { x: 600, y: 380, w: 220, h: 160 },
   };
@@ -333,6 +337,9 @@ export const CampusMap: React.FC<CampusMapProps> = ({ buildings, onOpenBookingMo
                     <div>
                       <div className="font-bold text-xs text-white">
                         ROOM #{room.room_number}
+                        {room.room_number === 'KSH' && <span className="text-[10px] text-neutral-400 font-normal ml-1">(Krishna)</span>}
+                        {room.room_number === 'HSH' && <span className="text-[10px] text-neutral-400 font-normal ml-1">(Hundri)</span>}
+                        {room.room_number === 'TSH' && <span className="text-[10px] text-neutral-400 font-normal ml-1">(Tungabhadra)</span>}
                       </div>
                       <div className="text-[10px] text-neutral-500">
                         {room.room_type} / {room.capacity} SEATS
@@ -395,7 +402,11 @@ export const CampusMap: React.FC<CampusMapProps> = ({ buildings, onOpenBookingMo
                 </span>
               </div>
               <h3 className="text-base font-bold text-white uppercase">
-                Room #{selectedRoomDetail.room_number} — {selectedRoomDetail.building_name}
+                Room #{selectedRoomDetail.room_number}
+                {selectedRoomDetail.room_number === 'KSH' && ' (Krishna Seminar Hall)'}
+                {selectedRoomDetail.room_number === 'HSH' && ' (Hundri Seminar Hall)'}
+                {selectedRoomDetail.room_number === 'TSH' && ' (Tungabhadra Seminar Hall)'}
+                {' — '}{selectedRoomDetail.building_name}
               </h3>
               <p className="text-xs text-neutral-500 mt-0.5">
                 Floor {selectedRoomDetail.floor} / {selectedRoomDetail.room_type}

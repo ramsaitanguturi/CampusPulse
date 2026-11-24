@@ -304,6 +304,15 @@ export const RoomsView: React.FC<RoomsViewProps> = ({ buildings, onOpenBookingMo
                   <div className="mt-3">
                     <h3 className="text-base font-bold text-white tracking-tight">
                       ROOM #{room.room_number}
+                      {room.room_number === 'KSH' && (
+                        <span className="block text-xs font-normal text-neutral-400 mt-0.5">KRISHNA SEMINAR HALL</span>
+                      )}
+                      {room.room_number === 'HSH' && (
+                        <span className="block text-xs font-normal text-neutral-400 mt-0.5">HUNDRI SEMINAR HALL</span>
+                      )}
+                      {room.room_number === 'TSH' && (
+                        <span className="block text-xs font-normal text-neutral-400 mt-0.5">TUNGABHADRA SEMINAR HALL</span>
+                      )}
                     </h3>
                     <p className="text-[11px] text-neutral-500 mt-0.5 truncate">
                       {room.building_name} / FL {room.floor}

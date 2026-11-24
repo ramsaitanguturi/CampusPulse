@@ -212,12 +212,23 @@ class CampusService:
             query = query.filter(Room.capacity >= min_capacity)
         if search:
             search_fmt = f"%{search}%"
+            extra_conditions = []
+            s_lower = search.lower()
+            if "hundri" in s_lower:
+                extra_conditions.append(Room.room_number == "HSH")
+            if "tungabhadra" in s_lower or "tunga" in s_lower:
+                extra_conditions.append(Room.room_number == "TSH")
+            if "krishna" in s_lower:
+                extra_conditions.append(Room.room_number == "KSH")
+
             query = query.filter(
                 or_(
                     Room.room_number.ilike(search_fmt),
                     Building.name.ilike(search_fmt),
                     Building.code.ilike(search_fmt),
-                    Room.room_type.ilike(search_fmt)
+                    Building.description.ilike(search_fmt),
+                    Room.room_type.ilike(search_fmt),
+                    *extra_conditions
                 )
             )
 
